@@ -1,0 +1,26 @@
+name: Update SquishPass
+on:
+  repository_dispatch:
+    types: [update_squishpass]
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install discord.js
+      - name: Run Update
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          POINTS: ${{ github.event.client_payload.points }}
+        run: node squishpass.mjs
+      - name: Save Persistence
+        run: |
+          git config --global user.name 'SquishBot'
+          git config --global user.email 'bot@github.com'
+          git add last_post_data.json
+          git commit -m "Update persistence" || echo "No changes"
+          git push
