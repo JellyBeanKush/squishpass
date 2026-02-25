@@ -4,7 +4,7 @@ on:
     types: [update_squishpass]
 
 permissions:
-  contents: write # CRITICAL: Allows the bot to commit the updated JSON file back to the repo
+  contents: write
 
 jobs:
   update:
@@ -12,22 +12,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Ensures we get the full git history for pushing
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Run Update
+      - name: Sync and Run
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           POINTS: ${{ github.event.client_payload.points }}
-        run: node squishpass.mjs
+        run: |
+          # 1. Get the absolute latest version of the JSON file first
+          git config --global user.name 'SquishBot'
+          git config --global user.email 'bot@github.com'
+          git pull origin main
+          
+          # 2. Run the script with the fresh ID
+          node squishpass.mjs
 
       - name: Save Persistence
         run: |
-          git config --global user.name 'SquishBot'
-          git config --global user.email 'bot@github.com'
-          git pull origin main --rebase # Get any updates that happened while the script ran
           git add last_post_data.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update persistence [skip ci]" && git push origin main)
+          # Only commit if there is actually a new message ID
+          if ! git diff --cached --quiet; then
+            git commit -m "Update persistence [skip ci]"
+            git push origin main
+          else
+            echo "No changes to persistence file."
+          fi
