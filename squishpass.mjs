@@ -1,6 +1,7 @@
 import fs from 'fs';
 
 const PERSISTENCE_FILE = "last_post_data.json";
+const THREAD_ID = "1476295145371467908"; // Your specific thread
 const MAX_LEVEL = 20;
 
 const LEVEL_DATA = {
@@ -50,9 +51,7 @@ async function main() {
         .map(([lvl, data]) => `✅ Level ${lvl}: **${data.reward}** — *${data.description}*`)
         .join("\n") || "None yet! Reach Level 1 to start.";
 
-    let content = currentLevel >= MAX_LEVEL 
-        ? `🎉 **SQUISH PASS MAXED!** Current Level: **${currentLevel}**! Points: **${points.toLocaleString()}**! 🥳\n\n**All Rewards Unlocked:**\n${unlockedList}\n\n💖 **Contribute to the Squish Pass** via Subs, Bits, Gifts, or Food!`
-        : `⭐ **SQUISH PASS UPDATE!** Current Level: **${currentLevel}**! Points: **${points.toLocaleString()}**!\n\n**Rewards Unlocked So Far:**\n${unlockedList}\n\n🎯 **Only ${pointsNeeded.toLocaleString()} more points** to reach **Level ${nextLvl}**: **${LEVEL_DATA[nextLvl].reward}**\n\n💖 **Contribute to the Squish Pass** via Subs, Bits, Gifts, or Food!`;
+    let content = `⭐ **SQUISH PASS UPDATE!** Current Level: **${currentLevel}**! Points: **${points.toLocaleString()}**!\n\n**Rewards Unlocked So Far:**\n${unlockedList}\n\n🎯 **Only ${pointsNeeded.toLocaleString()} more points** to reach **Level ${nextLvl}**\n\n💖 **Contribute to the Squish Pass** via Subs, Bits, Gifts, or Food!`;
 
     const imagePath = `./images/SP - LVL${currentLevel} - FEB26.png`;
     const imageBuffer = fs.readFileSync(imagePath);
@@ -63,46 +62,46 @@ async function main() {
         lastData = JSON.parse(fs.readFileSync(PERSISTENCE_FILE));
     }
 
+    const baseWebhookUrl = new URL(webhookUrl);
+    const cleanPath = baseWebhookUrl.pathname.replace(/\/$/, "");
+    
+    let targetUrl;
+    let method = 'POST';
+
+    // Build the URL specifically for a thread
+    if (lastData.message_id && lastData.message_id.length > 5) {
+        targetUrl = `${baseWebhookUrl.origin}${cleanPath}/messages/${lastData.message_id}?wait=true&thread_id=${THREAD_ID}`;
+        method = 'PATCH';
+    } else {
+        targetUrl = `${baseWebhookUrl.origin}${cleanPath}?wait=true&thread_id=${THREAD_ID}`;
+        method = 'POST';
+    }
+
     const formData = new FormData();
     const payload = {
         content: content,
         attachments: [{ id: 0, filename: fileName }]
     };
+
     formData.append('payload_json', JSON.stringify(payload));
     formData.append('files[0]', new Blob([imageBuffer]), fileName);
 
-    const baseWebhookUrl = new URL(webhookUrl);
-    let targetUrl;
-    let method = 'POST';
-
-    // Ensure we have a valid, non-empty ID before trying PATCH
-    if (lastData.message_id && lastData.message_id.length > 5) {
-        const cleanPath = baseWebhookUrl.pathname.replace(/\/$/, "");
-        targetUrl = new URL(`${baseWebhookUrl.origin}${cleanPath}/messages/${lastData.message_id}?wait=true`);
-        method = 'PATCH';
-    } else {
-        targetUrl = new URL(baseWebhookUrl.toString());
-        targetUrl.searchParams.append('wait', 'true');
-    }
-
     try {
-        console.log(`Sending ${method} request...`);
-        let response = await fetch(targetUrl.toString(), { method, body: formData });
+        console.log(`Sending ${method} request to thread...`);
+        let response = await fetch(targetUrl, { method, body: formData });
 
         if (!response.ok && method === 'PATCH') {
             const err = await response.json();
-            console.warn(`PATCH failed (${err.message}). Falling back to new post.`);
+            console.warn(`Thread PATCH failed: ${err.message}. Sending new post to thread.`);
             method = 'POST';
-            targetUrl = new URL(baseWebhookUrl.toString());
-            targetUrl.searchParams.append('wait', 'true');
-            response = await fetch(targetUrl.toString(), { method: 'POST', body: formData });
+            const postUrl = `${baseWebhookUrl.origin}${cleanPath}?wait=true&thread_id=${THREAD_ID}`;
+            response = await fetch(postUrl, { method: 'POST', body: formData });
         }
 
         const result = await response.json();
         if (result.id) {
-            lastData.message_id = result.id;
-            fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify(lastData, null, 2));
-            console.log(`Success! Current Message ID: ${result.id}`);
+            fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({ message_id: result.id }, null, 2));
+            console.log(`Success! Message ID ${result.id} is active in thread.`);
         }
     } catch (err) {
         console.error("Critical error:", err);
