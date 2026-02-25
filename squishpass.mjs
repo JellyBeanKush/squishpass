@@ -37,7 +37,6 @@ async function main() {
         process.exit(1);
     }
 
-    // CALCULATE LEVEL
     let currentLevel = 0;
     for (const [lvl, data] of Object.entries(LEVEL_DATA)) {
         if (points >= data.points) currentLevel = parseInt(lvl);
@@ -46,38 +45,28 @@ async function main() {
     const nextLvl = currentLevel < MAX_LEVEL ? currentLevel + 1 : MAX_LEVEL;
     const pointsNeeded = Math.max(0, LEVEL_DATA[nextLvl].points - points);
 
-    // BUILD REWARD LIST
     let unlockedList = Object.entries(LEVEL_DATA)
         .filter(([lvl]) => lvl > 0 && lvl <= currentLevel)
         .map(([lvl, data]) => `✅ Level ${lvl}: **${data.reward}** — *${data.description}*`)
         .join("\n") || "None yet! Reach Level 1 to start.";
 
-    // BUILD CONTENT STRING
-    let content = "";
-    if (currentLevel >= MAX_LEVEL) {
-        content = `🎉 **SQUISH PASS MAXED!** Current Level: **${currentLevel}**! Total Points: **${points.toLocaleString()}**! 🥳\n\n**All Rewards Unlocked:**\n${unlockedList}\n\n💖 **Contribute to the Squish Pass** via Subs, Bits, Gifts, or Food!`;
-    } else {
-        content = `⭐ **SQUISH PASS UPDATE!** Current Level: **${currentLevel}**! Total Points: **${points.toLocaleString()}**!\n\n**Rewards Unlocked So Far:**\n${unlockedList}\n\n🎯 **Only ${pointsNeeded.toLocaleString()} more points** to reach **Level ${nextLvl}**: **${LEVEL_DATA[nextLvl].reward}**\n\n💖 **Contribute to the Squish Pass** via Subs, Bits, Gifts, or Food!`;
-    }
+    let content = currentLevel >= MAX_LEVEL 
+        ? `🎉 **SQUISH PASS MAXED!** Current Level: **${currentLevel}**! Points: **${points.toLocaleString()}**! 🥳\n\n**All Rewards Unlocked:**\n${unlockedList}\n\n💖 **Contribute to the Squish Pass** via Subs, Bits, Gifts, or Food!`
+        : `⭐ **SQUISH PASS UPDATE!** Current Level: **${currentLevel}**! Points: **${points.toLocaleString()}**!\n\n**Rewards Unlocked So Far:**\n${unlockedList}\n\n🎯 **Only ${pointsNeeded.toLocaleString()} more points** to reach **Level ${nextLvl}**: **${LEVEL_DATA[nextLvl].reward}**\n\n💖 **Contribute to the Squish Pass** via Subs, Bits, Gifts, or Food!`;
 
-    // IMAGE PREP
     const imagePath = `./images/SP - LVL${currentLevel} - FEB26.png`;
-    let imageBuffer;
-    try {
-        imageBuffer = fs.readFileSync(imagePath);
-    } catch (err) {
-        console.error(`Error reading image at ${imagePath}.`);
-        process.exit(1);
-    }
+    const imageBuffer = fs.readFileSync(imagePath);
     const fileName = `SP-LVL${currentLevel}.png`;
 
-    // PERSISTENCE
+    // 1. Load the ID and LOG IT so we can see what GitHub "thinks" the last message was
     let lastData = { message_id: null };
     if (fs.existsSync(PERSISTENCE_FILE)) {
         lastData = JSON.parse(fs.readFileSync(PERSISTENCE_FILE));
+        console.log(`Loaded from file: ${JSON.stringify(lastData)}`);
+    } else {
+        console.log("No persistence file found. This will be a new post.");
     }
 
-    // PREPARE FORM DATA
     const formData = new FormData();
     const payload = {
         content: content,
@@ -90,9 +79,10 @@ async function main() {
     let targetUrl;
     let method = 'POST';
 
-    if (lastData.message_id) {
-        targetUrl = new URL(`${baseWebhookUrl.origin}${baseWebhookUrl.pathname}/messages/${lastData.message_id}`);
-        targetUrl.searchParams.append('wait', 'true');
+    // 2. Safer URL construction to prevent double slashes
+    if (lastData.message_id && lastData.message_id.trim() !== "") {
+        const cleanPath = baseWebhookUrl.pathname.endsWith('/') ? baseWebhookUrl.pathname.slice(0, -1) : baseWebhookUrl.pathname;
+        targetUrl = new URL(`${baseWebhookUrl.origin}${cleanPath}/messages/${lastData.message_id}?wait=true`);
         method = 'PATCH';
     } else {
         targetUrl = new URL(baseWebhookUrl.toString());
@@ -100,32 +90,31 @@ async function main() {
     }
 
     try {
-        console.log(`${method === 'PATCH' ? 'Editing' : 'Sending'} message...`);
+        console.log(`Executing ${method} request...`);
         let response = await fetch(targetUrl.toString(), { method, body: formData });
 
-        if (!response.ok && method === 'PATCH') {
-            const errorData = await response.json();
-            console.error("PATCH failed. Discord says:", JSON.stringify(errorData, null, 2));
-            
-            console.log("Falling back to new post...");
-            method = 'POST';
-            targetUrl = new URL(baseWebhookUrl.toString());
-            targetUrl.searchParams.append('wait', 'true');
-            response = await fetch(targetUrl.toString(), { method, body: formData });
+        if (!response.ok) {
+            const errorJson = await response.json();
+            console.error(`Discord rejected ${method}:`, JSON.stringify(errorJson, null, 2));
+
+            if (method === 'PATCH') {
+                console.log("Falling back to NEW POST because PATCH failed.");
+                method = 'POST';
+                const postUrl = new URL(baseWebhookUrl.toString());
+                postUrl.searchParams.append('wait', 'true');
+                response = await fetch(postUrl.toString(), { method: 'POST', body: formData });
+            }
         }
 
         const result = await response.json();
-        if (response.ok && result.id) {
+        if (result.id) {
             lastData.message_id = result.id;
             fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify(lastData, null, 2));
-            console.log(`Success! Message ID: ${result.id}`);
-        } else {
-            console.error("Final attempt failed:", result);
+            console.log(`Success! New Message ID saved: ${result.id}`);
         }
     } catch (err) {
-        console.error("Critical script error:", err);
+        console.error("Critical error:", err);
     }
-    process.exit(0);
 }
 
 main();
