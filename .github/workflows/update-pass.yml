@@ -22,6 +22,8 @@ jobs:
         run: |
           git config --global user.name 'SquishBot'
           git config --global user.email 'bot@github.com'
+          # Pull first to make sure we don't have a conflict
+          git pull origin main
           git add last_post_data.json
-          git commit -m "Update persistence [skip ci]" || echo "No changes"
-          git push
+          # Only commit if the file actually changed
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update persistence [skip ci]" && git push)
