@@ -28,6 +28,6 @@ jobs:
         run: |
           git config --global user.name 'SquishBot'
           git config --global user.email 'bot@github.com'
+          git pull origin main --rebase # Get any updates that happened while the script ran
           git add last_post_data.json
-          # Only commit and push if the file actually changed
           git diff --quiet && git diff --staged --quiet || (git commit -m "Update persistence [skip ci]" && git push origin main)
