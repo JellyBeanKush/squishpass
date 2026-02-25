@@ -58,13 +58,9 @@ async function main() {
     const imageBuffer = fs.readFileSync(imagePath);
     const fileName = `SP-LVL${currentLevel}.png`;
 
-    // 1. Load the ID and LOG IT so we can see what GitHub "thinks" the last message was
     let lastData = { message_id: null };
     if (fs.existsSync(PERSISTENCE_FILE)) {
         lastData = JSON.parse(fs.readFileSync(PERSISTENCE_FILE));
-        console.log(`Loaded from file: ${JSON.stringify(lastData)}`);
-    } else {
-        console.log("No persistence file found. This will be a new post.");
     }
 
     const formData = new FormData();
@@ -79,9 +75,9 @@ async function main() {
     let targetUrl;
     let method = 'POST';
 
-    // 2. Safer URL construction to prevent double slashes
-    if (lastData.message_id && lastData.message_id.trim() !== "") {
-        const cleanPath = baseWebhookUrl.pathname.endsWith('/') ? baseWebhookUrl.pathname.slice(0, -1) : baseWebhookUrl.pathname;
+    // Ensure we have a valid, non-empty ID before trying PATCH
+    if (lastData.message_id && lastData.message_id.length > 5) {
+        const cleanPath = baseWebhookUrl.pathname.replace(/\/$/, "");
         targetUrl = new URL(`${baseWebhookUrl.origin}${cleanPath}/messages/${lastData.message_id}?wait=true`);
         method = 'PATCH';
     } else {
@@ -90,27 +86,23 @@ async function main() {
     }
 
     try {
-        console.log(`Executing ${method} request...`);
+        console.log(`Sending ${method} request...`);
         let response = await fetch(targetUrl.toString(), { method, body: formData });
 
-        if (!response.ok) {
-            const errorJson = await response.json();
-            console.error(`Discord rejected ${method}:`, JSON.stringify(errorJson, null, 2));
-
-            if (method === 'PATCH') {
-                console.log("Falling back to NEW POST because PATCH failed.");
-                method = 'POST';
-                const postUrl = new URL(baseWebhookUrl.toString());
-                postUrl.searchParams.append('wait', 'true');
-                response = await fetch(postUrl.toString(), { method: 'POST', body: formData });
-            }
+        if (!response.ok && method === 'PATCH') {
+            const err = await response.json();
+            console.warn(`PATCH failed (${err.message}). Falling back to new post.`);
+            method = 'POST';
+            targetUrl = new URL(baseWebhookUrl.toString());
+            targetUrl.searchParams.append('wait', 'true');
+            response = await fetch(targetUrl.toString(), { method: 'POST', body: formData });
         }
 
         const result = await response.json();
         if (result.id) {
             lastData.message_id = result.id;
             fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify(lastData, null, 2));
-            console.log(`Success! New Message ID saved: ${result.id}`);
+            console.log(`Success! Current Message ID: ${result.id}`);
         }
     } catch (err) {
         console.error("Critical error:", err);
