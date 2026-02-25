@@ -3,11 +3,17 @@ on:
   repository_dispatch:
     types: [update_squishpass]
 
+permissions:
+  contents: write # CRITICAL: Allows the bot to commit the updated JSON file back to the repo
+
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Ensures we get the full git history for pushing
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -22,8 +28,6 @@ jobs:
         run: |
           git config --global user.name 'SquishBot'
           git config --global user.email 'bot@github.com'
-          # Pull first to make sure we don't have a conflict
-          git pull origin main
           git add last_post_data.json
-          # Only commit if the file actually changed
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update persistence [skip ci]" && git push)
+          # Only commit and push if the file actually changed
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update persistence [skip ci]" && git push origin main)
