@@ -62,7 +62,13 @@ async function main() {
 
     // IMAGE PREP
     const imagePath = `./images/SP - LVL${currentLevel} - FEB26.png`;
-    const imageBuffer = fs.readFileSync(imagePath);
+    let imageBuffer;
+    try {
+        imageBuffer = fs.readFileSync(imagePath);
+    } catch (err) {
+        console.error(`Error reading image at ${imagePath}. Make sure it exists!`);
+        process.exit(1);
+    }
     const fileName = `SP-LVL${currentLevel}.png`;
 
     // PERSISTENCE
@@ -71,35 +77,56 @@ async function main() {
         lastData = JSON.parse(fs.readFileSync(PERSISTENCE_FILE));
     }
 
-    // SEND/EDIT VIA WEBHOOK
-    const formData = new FormData();
-    formData.append('payload_json', JSON.stringify({ content }));
-    formData.append('file', new Blob([imageBuffer]), fileName);
+    // PREPARE PAYLOAD (Discord V10 File Standard)
+    const payload = {
+        content: content,
+        attachments: [{ id: 0, filename: fileName }] // This tells Discord to explicitly replace/use this file
+    };
 
-    let targetUrl = `${webhookUrl}&wait=true`; // wait=true allows us to get the message ID back
+    const formData = new FormData();
+    formData.append('payload_json', JSON.stringify(payload));
+    formData.append('files[0]', new Blob([imageBuffer]), fileName);
+
+    // CONSTRUCT URLS SAFELY
+    const baseWebhookUrl = new URL(webhookUrl);
+    let targetUrl;
     let method = 'POST';
 
     if (lastData.message_id) {
-        targetUrl = `${webhookUrl}/messages/${lastData.message_id}?wait=true`;
+        // PATCH URL: /webhooks/{id}/{token}/messages/{message_id}?wait=true
+        targetUrl = new URL(`${baseWebhookUrl.origin}${baseWebhookUrl.pathname}/messages/${lastData.message_id}`);
+        targetUrl.searchParams.append('wait', 'true');
         method = 'PATCH';
+    } else {
+        // POST URL: /webhooks/{id}/{token}?wait=true
+        targetUrl = new URL(baseWebhookUrl.toString());
+        targetUrl.searchParams.append('wait', 'true');
     }
 
     try {
-        console.log(`${method === 'PATCH' ? 'Editing' : 'Sending'} message...`);
-        let response = await fetch(targetUrl, { method, body: formData });
+        console.log(`${method === 'PATCH' ? 'Editing existing' : 'Sending new'} message...`);
+        let response = await fetch(targetUrl.toString(), { method, body: formData });
 
-        // If PATCH fails (e.g. message deleted or webhook changed), fallback to POST
+        // If PATCH fails (e.g., message deleted), fallback to POST
         if (!response.ok && method === 'PATCH') {
-            console.log("Edit failed, sending new message...");
-            targetUrl = `${webhookUrl}&wait=true`;
-            response = await fetch(targetUrl, { method: 'POST', body: formData });
+            const errorText = await response.text();
+            console.log(`Edit failed (${response.status}: ${errorText}). Sending new message instead...`);
+            
+            // Re-setup for POST
+            method = 'POST';
+            targetUrl = new URL(baseWebhookUrl.toString());
+            targetUrl.searchParams.append('wait', 'true');
+            
+            response = await fetch(targetUrl.toString(), { method, body: formData });
         }
 
         const result = await response.json();
-        if (result.id) {
+        
+        // Save new ID if successful
+        if (response.ok && result.id) {
             lastData.message_id = result.id;
             fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify(lastData, null, 2));
-            console.log(`Success! Message ID: ${result.id}`);
+            console.log(`Success! Message ID saved: ${result.id}`);
         } else {
             console.error("Error from Discord:", result);
         }
