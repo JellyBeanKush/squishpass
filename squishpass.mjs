@@ -1,8 +1,6 @@
-import { Client, GatewayIntentBits, AttachmentBuilder } from 'discord.js';
 import fs from 'fs';
 
 const PERSISTENCE_FILE = "last_post_data.json";
-const CHANNEL_ID = "1435754946321453247"; // Your SquishPass Channel
 const MAX_LEVEL = 20;
 
 const LEVEL_DATA = {
@@ -30,14 +28,16 @@ const LEVEL_DATA = {
 };
 
 async function main() {
-    // 1. IMPROVED POINT HANDLING: Catch points even if sent as a string
     const rawPoints = process.env.POINTS;
     const points = (rawPoints && rawPoints !== "undefined" && rawPoints !== "NaN") ? parseInt(rawPoints) : 0;
+    const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
 
-    const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-    await client.login(process.env.DISCORD_TOKEN);
+    if (!webhookUrl) {
+        console.error("Missing DISCORD_WEBHOOK_URL");
+        process.exit(1);
+    }
 
-    // 2. CALCULATE LEVEL
+    // CALCULATE LEVEL
     let currentLevel = 0;
     for (const [lvl, data] of Object.entries(LEVEL_DATA)) {
         if (points >= data.points) currentLevel = parseInt(lvl);
@@ -46,13 +46,13 @@ async function main() {
     const nextLvl = currentLevel < MAX_LEVEL ? currentLevel + 1 : MAX_LEVEL;
     const pointsNeeded = Math.max(0, LEVEL_DATA[nextLvl].points - points);
 
-    // 3. BUILD REWARD LIST
+    // BUILD REWARD LIST
     let unlockedList = Object.entries(LEVEL_DATA)
         .filter(([lvl]) => lvl > 0 && lvl <= currentLevel)
         .map(([lvl, data]) => `✅ Level ${lvl}: **${data.reward}** — *${data.description}*`)
         .join("\n") || "None yet! Reach Level 1 to start.";
 
-    // 4. BUILD CONTENT STRING
+    // BUILD CONTENT STRING
     let content = "";
     if (currentLevel >= MAX_LEVEL) {
         content = `🎉 **SQUISH PASS MAXED!** Current Level: **${currentLevel}**! Total Points: **${points.toLocaleString()}**! 🥳\n\n**All Rewards Unlocked:**\n${unlockedList}\n\n💖 **Contribute to the Squish Pass** via Subs, Bits, Gifts, or Food!`;
@@ -60,31 +60,51 @@ async function main() {
         content = `⭐ **SQUISH PASS UPDATE!** Current Level: **${currentLevel}**! Total Points: **${points.toLocaleString()}**!\n\n**Rewards Unlocked So Far:**\n${unlockedList}\n\n🎯 **Only ${pointsNeeded.toLocaleString()} more points** to reach **Level ${nextLvl}**: **${LEVEL_DATA[nextLvl].reward}**\n\n💖 **Contribute to the Squish Pass** via Subs, Bits, Gifts, or Food!`;
     }
 
-    // 5. ATTACHMENT AND CHANNEL
-    const channel = await client.channels.fetch(CHANNEL_ID);
+    // IMAGE PREP
     const imagePath = `./images/SP - LVL${currentLevel} - FEB26.png`;
-    const attachment = new AttachmentBuilder(imagePath);
+    const imageBuffer = fs.readFileSync(imagePath);
+    const fileName = `SP-LVL${currentLevel}.png`;
 
-    // 6. EDIT OR SEND LOGIC
+    // PERSISTENCE
     let lastData = { message_id: null };
     if (fs.existsSync(PERSISTENCE_FILE)) {
         lastData = JSON.parse(fs.readFileSync(PERSISTENCE_FILE));
     }
 
+    // SEND/EDIT VIA WEBHOOK
+    const formData = new FormData();
+    formData.append('payload_json', JSON.stringify({ content }));
+    formData.append('file', new Blob([imageBuffer]), fileName);
+
+    let targetUrl = `${webhookUrl}&wait=true`; // wait=true allows us to get the message ID back
+    let method = 'POST';
+
+    if (lastData.message_id) {
+        targetUrl = `${webhookUrl}/messages/${lastData.message_id}?wait=true`;
+        method = 'PATCH';
+    }
+
     try {
-        if (lastData.message_id) {
-            const msg = await channel.messages.fetch(lastData.message_id.toString());
-            await msg.edit({ content, files: [attachment] });
-            console.log(`Edited message for Level ${currentLevel}`);
+        console.log(`${method === 'PATCH' ? 'Editing' : 'Sending'} message...`);
+        let response = await fetch(targetUrl, { method, body: formData });
+
+        // If PATCH fails (e.g. message deleted or webhook changed), fallback to POST
+        if (!response.ok && method === 'PATCH') {
+            console.log("Edit failed, sending new message...");
+            targetUrl = `${webhookUrl}&wait=true`;
+            response = await fetch(targetUrl, { method: 'POST', body: formData });
+        }
+
+        const result = await response.json();
+        if (result.id) {
+            lastData.message_id = result.id;
+            fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify(lastData, null, 2));
+            console.log(`Success! Message ID: ${result.id}`);
         } else {
-            throw new Error("No ID saved yet.");
+            console.error("Error from Discord:", result);
         }
     } catch (err) {
-        console.log("Could not edit message, sending new one...");
-        const newMsg = await channel.send({ content, files: [attachment] });
-        lastData.message_id = newMsg.id;
-        fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify(lastData));
-        console.log("New message sent and ID updated.");
+        console.error("Request failed:", err);
     }
 
     process.exit(0);
