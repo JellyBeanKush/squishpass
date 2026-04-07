@@ -1,68 +1,72 @@
 import fs from 'fs';
 
+// --- CONFIGURATION ---
 const PERSISTENCE_FILE = "last_post_data.json";
 const THREAD_ID = "1476295145371467908"; 
+const TARGET_MESSAGE_ID = "1476320490220949686"; 
 const MAX_LEVEL = 30;
 
+// This object maps total points to rewards. 
+// The script will find the highest level where your total_points >= points.
 const LEVEL_DATA = {
     0: { points: 0, reward: "Squish Pass Start", description: "The journey begins! Help us reach Level 1 to kick off the monthly rewards." },
-    1: { points: 1, reward: "Lit Club", description: "Our monthly Book Club! We pick a title and dive deep into the story, characters, and theories in the dedicated Discord channel." },
-    2: { points: 5, reward: "+5 Hours", description: "The grind continues! We're adding 5 extra hours to our monthly stream bank for more hangouts." },
-    3: { points: 10, reward: "Music Madness", description: "The ultimate Songbattle.io showdown. Viewers add tracks all month long, ending in a massive review stream to vote on new playlist hits." },
-    4: { points: 15, reward: "x2 Multiplier", description: "The hype train is moving! Everyone earns double points for the remainder of the month." },
-    5: { points: 22, reward: "+5 Hours", description: "Boosting the schedule again! Another 5 hours added to the monthly stream bank." },
-    6: { points: 30, reward: "Art Pack", description: "Exclusive goodies! Unlocks a monthly drop of custom mobile/desktop wallpapers and printable coloring pages." },
-    7: { points: 40, reward: "Tier Lists", description: "A dedicated 3-hour marathon stream where we rank everything from the best snacks to the worst game mechanics with chat." },
-    8: { points: 60, reward: "+5 Hours", description: "Expanding the calendar! 5 more hours of bonus stream time are now in the bank." },
-    9: { points: 80, reward: "Movie Night", description: "Grab the popcorn and settle in. We’re hosting a Discord hangout to watch films together." },
-    10: { points: 100, reward: "$25 Giveaway", description: "The first major milestone! One lucky winner gets their choice of $25 in Cash, V-Bucks, Gift Cards, or Merch credit." },
-    11: { points: 120, reward: "+5 Hours", description: "More time for activities! Adding another 5-hour block to the monthly stream schedule." },
-    12: { points: 140, reward: "x3 Multiplier", description: "Triple time! The point multiplier is officially upgraded to x3." },
-    13: { points: 165, reward: "Arts 'n Crafts", description: "Getting hands-on! A special stream where we tackle a DIY project, painting, or crafting live with the community." },
-    14: { points: 190, reward: "+5 Hours", description: "Keeping the energy up with 5 more bonus hours added to the time bank." },
-    15: { points: 215, reward: "Karaoke", description: "Mic check, 1-2! A high-energy karaoke stream where we sing our favorite tracks live." },
-    16: { points: 240, reward: "Tabletop Games", description: "Unplugged fun! A dedicated night for various board games, complex puzzles, or classic card games on stream." },
-    17: { points: 265, reward: "+5 Hours", description: "The schedule is growing! 5 more hours of bonus content unlocked." },
-    18: { points: 290, reward: "x4 Multiplier", description: "Insane gains! Everyone is now earning x4 points until the end of the month." },
-    19: { points: 315, reward: "+5 Hours", description: "Another 5-hour deposit into the monthly stream time bank." },
-    20: { points: 345, reward: "$25 Giveaway", description: "Level 20 Milestone! Another chance to win a $25 prize of your choosing (Cash, Subs, or Merch)." },
-    21: { points: 375, reward: "+5 Hours", description: "The final stretch! Adding 5 more bonus hours to our monthly stream bank." },
-    22: { points: 405, reward: "Cooking Stream", description: "A special culinary takeover to prepare a fancy, 3+ course meal live on camera." },
-    23: { points: 435, reward: "Park 'n Picnic", description: "We're going IRL! Join us for a nature stream featuring a local hike and a scenic outdoor picnic." },
-    24: { points: 465, reward: "Workout Stream", description: "Breaking a sweat! We'll be going through a full exercise and fitness regimen live for the community." },
-    25: { points: 495, reward: "+5 Hours", description: "Maximizing the schedule! One of the last 5-hour boosts for the month." },
-    26: { points: 525, reward: "Shirtless 'til Reset", description: "The ultimate stream challenge! Once unlocked, the challenge remains active until the monthly reset." },
-    27: { points: 560, reward: "x5 Multiplier", description: "MAX MULTIPLIER! Enjoy x5 points for all viewers until the end of the month." },
-    28: { points: 595, reward: "+5 Hours", description: "The final 5-hour addition to the monthly stream time bank." },
-    29: { points: 630, reward: "Special Outfit", description: "The community choice! A debut of a special outfit (like the Maid Outfit) chosen by you!" },
-    30: { points: 666, reward: "$25 Giveaway", description: "THE FINAL BOSS! One last $25 value giveaway to celebrate hitting Max Level 30!" }
+    1: { points: 1, reward: "Lit Club", description: "Our monthly Book Club! We pick a title and dive deep into the story and characters." },
+    2: { points: 5, reward: "+5 Hours", description: "Adding 5 extra hours to our monthly stream bank for more hangouts." },
+    3: { points: 10, reward: "Music Madness", description: "The ultimate Songbattle.io showdown with the community." },
+    4: { points: 15, reward: "x2 Multiplier", description: "Everyone earns double points for the remainder of the month." },
+    5: { points: 22, reward: "+5 Hours", description: "Another 5 hours added to the monthly stream bank." },
+    6: { points: 30, reward: "Art Pack", description: "Custom mobile/desktop wallpapers and printable coloring pages drop." },
+    7: { points: 40, reward: "Tier Lists", description: "A marathon stream where we rank everything with chat." },
+    8: { points: 60, reward: "+5 Hours", description: "5 more hours of bonus stream time are now in the bank." },
+    9: { points: 80, reward: "Movie Night", description: "Discord hangout to watch films together." },
+    10: { points: 100, reward: "$25 Giveaway", description: "Choice of $25 in Cash, V-Bucks, Gift Cards, or Merch credit." },
+    11: { points: 120, reward: "+5 Hours", description: "Adding another 5-hour block to the monthly schedule." },
+    12: { points: 140, reward: "x3 Multiplier", description: "The point multiplier is upgraded to x3." },
+    13: { points: 165, reward: "Arts 'n Crafts", description: "DIY project, painting, or crafting live on stream." },
+    14: { points: 190, reward: "+5 Hours", description: "5 more bonus hours added to the time bank." },
+    15: { points: 215, reward: "Karaoke", description: "Singing our favorite tracks live on the mic." },
+    16: { points: 240, reward: "Tabletop Games", description: "Board games, puzzles, or classic card games on stream." },
+    17: { points: 265, reward: "+5 Hours", description: "5 more hours of bonus content unlocked." },
+    18: { points: 290, reward: "x4 Multiplier", description: "Everyone is now earning x4 points." },
+    19: { points: 315, reward: "+5 Hours", description: "Another 5-hour deposit into the monthly time bank." },
+    20: { points: 345, reward: "$25 Giveaway", description: "Level 20 Milestone! Another chance to win a $25 prize." },
+    21: { points: 375, reward: "+5 Hours", description: "Adding 5 more bonus hours to the monthly bank." },
+    22: { points: 405, reward: "Cooking Stream", description: "Preparing a fancy meal live on camera." },
+    23: { points: 435, reward: "Park 'n Picnic", description: "IRL nature stream featuring a hike and outdoor picnic." },
+    24: { points: 465, reward: "Workout Stream", description: "Exercise and fitness regimen live for the community." },
+    25: { points: 495, reward: "+5 Hours", description: "One of the last 5-hour boosts for the month." },
+    26: { points: 525, reward: "Shirtless 'til Reset", description: "Challenge active until the monthly reset." },
+    27: { points: 560, reward: "x5 Multiplier", description: "MAX MULTIPLIER! x5 points for all viewers." },
+    28: { points: 595, reward: "+5 Hours", description: "The final 5-hour addition to the monthly bank." },
+    29: { points: 630, reward: "Special Outfit", description: "A debut of a special community-chosen outfit!" },
+    30: { points: 666, reward: "$25 Giveaway", description: "THE FINAL BOSS! One last $25 value giveaway!" }
 };
 
 async function main() {
-    // 1. Get the increment from Mix It Up
-    const rawIncomingPoints = process.env.POINTS;
-    const incomingPoints = (rawIncomingPoints && rawIncomingPoints !== "undefined" && rawIncomingPoints !== "NaN") ? parseInt(rawIncomingPoints) : 0;
+    // 1. Capture the specific amount added right now from Mix It Up ($goalprogressamount)
+    const incomingPoints = parseInt(process.env.POINTS) || 0;
     const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
 
     if (!webhookUrl) {
-        console.error("Missing DISCORD_WEBHOOK_URL");
+        console.error("Error: Missing DISCORD_WEBHOOK_URL environment variable.");
         process.exit(1);
     }
 
-    // 2. Load existing data (Points + Message ID)
-    let lastData = { message_id: null, total_points: 0 };
+    // 2. Load the previous running total from the JSON file
+    let previousTotal = 0;
     if (fs.existsSync(PERSISTENCE_FILE)) {
         try {
-            lastData = JSON.parse(fs.readFileSync(PERSISTENCE_FILE));
+            const data = JSON.parse(fs.readFileSync(PERSISTENCE_FILE, 'utf8'));
+            previousTotal = data.total_points || 0;
         } catch (e) {
-            console.error("Error reading persistence file, starting fresh.");
+            console.warn("Could not read persistence file, starting from 0.");
         }
     }
 
-    // 3. Add the new points to the total
-    const totalPoints = (lastData.total_points || 0) + incomingPoints;
+    // 3. Calculate the new running total
+    const totalPoints = previousTotal + incomingPoints;
 
-    // 4. Determine Current Level based on Total Points
+    // 4. Calculate current level and next milestone
     let currentLevel = 0;
     for (const [lvl, data] of Object.entries(LEVEL_DATA)) {
         if (totalPoints >= data.points) currentLevel = parseInt(lvl);
@@ -70,68 +74,60 @@ async function main() {
 
     const nextLvl = currentLevel < MAX_LEVEL ? currentLevel + 1 : MAX_LEVEL;
     const pointsNeeded = Math.max(0, LEVEL_DATA[nextLvl].points - totalPoints);
+    const nextReward = LEVEL_DATA[nextLvl];
 
+    // 5. Build a list of all unlocked rewards so far
     let fullUnlockedList = Object.entries(LEVEL_DATA)
         .filter(([lvl]) => lvl > 0 && lvl <= currentLevel)
         .map(([lvl, data]) => `✅ Level ${lvl}: **${data.reward}**`)
         .join("\n") || "None yet! Reach Level 1 to start.";
-
-    let nextReward = LEVEL_DATA[nextLvl];
     
+    // 6. Assemble the Discord message content
     let content = `⭐ **SQUISH PASS UPDATE!**\n` +
-                  `Current Level: **${currentLevel}** | Total Points: **${totalPoints.toLocaleString()}**\n` +
-                  `*Added **${incomingPoints.toLocaleString()}** points this interaction!* \n\n` +
+                  `**Total Points:** ${totalPoints.toLocaleString()} | **Current Level:** ${currentLevel}\n` +
+                  `*📈 Added **${incomingPoints.toLocaleString()}** points just now!* \n\n` +
                   `**Rewards Unlocked This Month:**\n${fullUnlockedList}\n\n` +
-                  `🎯 **Goal:** **${pointsNeeded.toLocaleString()}** points for **Level ${nextLvl}**\n` +
-                  `🎁 **Next Up:** **${nextReward.reward}**\n*${nextReward.description}*\n\n` +
+                  `🎯 **Next Milestone:** **${pointsNeeded.toLocaleString()}** more points for **Level ${nextLvl}**\n` +
+                  `🎁 **Next Reward:** ${nextReward.reward}\n` +
+                  `*${nextReward.description}*\n\n` +
                   `💖 **Support the stream to unlock the next milestone!**`;
 
     const fileName = `SP-LVL${currentLevel}.png`;
     const imagePath = `./images/${fileName}`;
 
-    // 5. Discord Webhook Logic
+    // 7. Update Discord using PATCH to avoid creating a new post
     const baseWebhookUrl = new URL(webhookUrl);
     const cleanPath = baseWebhookUrl.pathname.replace(/\/$/, "");
-    let targetUrl;
-    let method = 'POST';
-
-    if (lastData.message_id && lastData.message_id.length > 5) {
-        targetUrl = `${baseWebhookUrl.origin}${cleanPath}/messages/${lastData.message_id}?wait=true&thread_id=${THREAD_ID}`;
-        method = 'PATCH';
-    } else {
-        targetUrl = `${baseWebhookUrl.origin}${cleanPath}?wait=true&thread_id=${THREAD_ID}`;
-        method = 'POST';
-    }
+    const targetUrl = `${baseWebhookUrl.origin}${cleanPath}/messages/${TARGET_MESSAGE_ID}?wait=true&thread_id=${THREAD_ID}`;
 
     const formData = new FormData();
     const payload = { content: content };
 
+    // Attach the image if it exists in the /images/ folder
     if (fs.existsSync(imagePath)) {
-        try {
-            const imageBuffer = fs.readFileSync(imagePath);
-            payload.attachments = [{ id: 0, filename: fileName }];
-            formData.append('files[0]', new Blob([imageBuffer]), fileName);
-        } catch (err) {
-            console.warn(`Image check passed but read failed: ${err.message}`);
-        }
+        const imageBuffer = fs.readFileSync(imagePath);
+        payload.attachments = [{ id: 0, filename: fileName }];
+        formData.append('files[0]', new Blob([imageBuffer]), fileName);
     }
 
     formData.append('payload_json', JSON.stringify(payload));
 
     try {
-        let response = await fetch(targetUrl, { method, body: formData });
-        const result = await response.json();
-        
-        if (result.id) {
-            // 6. SAVE the updated Total Points and Message ID
-            fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({ 
-                message_id: result.id, 
-                total_points: totalPoints 
-            }, null, 2));
-            console.log(`Success! Updated Level ${currentLevel}. Total Points: ${totalPoints}`);
+        const response = await fetch(targetUrl, { method: 'PATCH', body: formData });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Discord API error: ${response.status} - ${errorText}`);
         }
+        
+        // 8. SAVE the new total back to the JSON file for the next run
+        fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({ 
+            message_id: TARGET_MESSAGE_ID, 
+            total_points: totalPoints 
+        }, null, 2));
+        
+        console.log(`Successfully updated to Level ${currentLevel}. New Total: ${totalPoints} (+${incomingPoints})`);
     } catch (err) {
-        console.error("Critical error:", err);
+        console.error("Failed to update Discord post:", err);
     }
 }
 
