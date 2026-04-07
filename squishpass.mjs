@@ -18,7 +18,7 @@ const LEVEL_DATA = {
     10: { points: 100, reward: "$25 Giveaway", description: "Milestone Prize! Choose $25 Cash/PayPal, Gift Cards, V-Bucks, a 6-month sub, or Merch credit." },
     11: { points: 120, reward: "+5 Hours", description: "Expanding the monthly schedule with 5 more bonus hours." },
     12: { points: 140, reward: "x3 HoneyBuns", description: "Triple the gains! The x3 multiplier is now active." },
-    13: { points: 165, reward: "Arts 'n Crafts", description: "A special creative stream tackling DIY, painting, or crafting live." },
+    13: { points: 165, reward: "Arts 'n Crafts", description: "A special creative stream tackling DIY projects, painting, or crafting live." },
     14: { points: 190, reward: "+5 Hours", description: "5 more hours added to the time bank." },
     15: { points: 215, reward: "Karaoke", description: "Warm up the vocal cords! A singular special vocal/karaoke stream event." },
     16: { points: 240, reward: "Tabletop Games", description: "Playing various tabletop games, puzzles, or card games on stream." },
@@ -27,15 +27,15 @@ const LEVEL_DATA = {
     19: { points: 315, reward: "+5 Hours", description: "Another 5-hour boost to the monthly schedule." },
     20: { points: 345, reward: "$25 Giveaway", description: "$25 value in Cash, V-Bucks, Subs, or Merch." },
     21: { points: 375, reward: "+5 Hours", description: "5 more bonus hours unlocked for the month." },
-    22: { points: 405, reward: "Cooking Stream", description: "HoneyBear and JellyBean tackle a fancy 3+ course meal live!" },
+    22: { points: 405, reward: "Cooking Stream", description: "HoneyBear and JellyBean tackle a fancy 3+ course meal live in the kitchen!" },
     23: { points: 435, reward: "Park 'n Picnic", description: "An IRL nature stream featuring a hike and a picnic." },
-    24: { points: 465, reward: "Workout Stream", description: "A full exercise regimen live on stream." },
+    24: { points: 465, reward: "Workout Stream", description: "Time to sweat! We’re going through a full exercise regimen live on stream." },
     25: { points: 495, reward: "+5 Hours", description: "Adding the final batch of 5 bonus hours to the bank." },
-    26: { points: 525, reward: "Shirtless 'til Reset", description: "Shirtless streams only until the end of the month!" },
+    26: { points: 525, reward: "Shirtless 'til Reset", description: "The ultimate commitment. Shirtless streams only until the end of the month!" },
     27: { points: 560, reward: "x5 HoneyBuns", description: "The Max Multiplier! x5 HoneyBuns for everyone until reset." },
     28: { points: 595, reward: "+5 Hours", description: "The final 5-hour push for the month's schedule." },
-    29: { points: 630, reward: "Special Outfit", description: "The community choice! HoneyBear debuts the Maid Outfit (or the next unlocked look)." },
-    30: { points: 666, reward: "$25 Giveaway", description: "Final Boss Giveaway! A $25 value prize for hitting MAX LEVEL!" }
+    29: { points: 630, reward: "Special Outfit", description: "The community choice! HoneyBear debuts the Maid Outfit (or current special look)." },
+    30: { points: 666, reward: "$25 Giveaway", description: "The Final Boss Giveaway! A $25 value prize to celebrate hitting MAX LEVEL!" }
 };
 
 async function main() {
@@ -56,6 +56,7 @@ async function main() {
     const nextLvl = currentLevel < MAX_LEVEL ? currentLevel + 1 : MAX_LEVEL;
     const pointsNeeded = Math.max(0, LEVEL_DATA[nextLvl].points - points);
 
+    // Shows the full list of everything unlocked this month
     let fullUnlockedList = Object.entries(LEVEL_DATA)
         .filter(([lvl]) => lvl > 0 && lvl <= currentLevel)
         .map(([lvl, data]) => `✅ Level ${lvl}: **${data.reward}**`)
@@ -71,7 +72,8 @@ async function main() {
                   `🎁 **Next Up:** **${nextReward.reward}**\n*${nextReward.description}*\n\n` +
                   `💖 **Contribute:** Subs, Bits, Gifts, or Food!`;
 
-    const fileName = `SP-LVL${currentLevel}.png`;
+    // Updated to match your actual filenames on GitHub
+    const fileName = `SP - LVL${currentLevel} - FEB26.png`;
     const imagePath = `./images/${fileName}`;
 
     let lastData = { message_id: null };
@@ -96,24 +98,21 @@ async function main() {
     const formData = new FormData();
     const payload = { content: content };
 
-    // --- CRITICAL FIX: Only try to read image if it actually exists ---
+    // --- Safe Check: Attach image only if it exists ---
     if (fs.existsSync(imagePath)) {
         try {
             const imageBuffer = fs.readFileSync(imagePath);
             payload.attachments = [{ id: 0, filename: fileName }];
             formData.append('files[0]', new Blob([imageBuffer]), fileName);
-            console.log(`Image found: ${fileName}. Attaching...`);
-        } catch (readErr) {
-            console.warn(`Could not read existing image: ${readErr.message}`);
+        } catch (err) {
+            console.warn(`Image exist check passed but read failed: ${err.message}`);
         }
-    } else {
-        console.log(`Image not found at ${imagePath}. Sending text-only update.`);
     }
 
     formData.append('payload_json', JSON.stringify(payload));
 
     try {
-        console.log(`Sending ${method} request...`);
+        console.log(`Sending ${method} request to thread...`);
         let response = await fetch(targetUrl, { method, body: formData });
 
         if (!response.ok && method === 'PATCH') {
