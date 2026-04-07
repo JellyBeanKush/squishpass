@@ -6,8 +6,6 @@ const THREAD_ID = "1476295145371467908";
 const TARGET_MESSAGE_ID = "1476320490220949686"; 
 const MAX_LEVEL = 30;
 
-// This object maps total points to rewards. 
-// The script will find the highest level where your total_points >= points.
 const LEVEL_DATA = {
     0: { points: 0, reward: "Squish Pass Start", description: "The journey begins! Help us reach Level 1 to kick off the monthly rewards." },
     1: { points: 1, reward: "Lit Club", description: "Our monthly Book Club! We pick a title and dive deep into the story and characters." },
@@ -43,30 +41,38 @@ const LEVEL_DATA = {
 };
 
 async function main() {
-    // 1. Capture the specific amount added right now from Mix It Up ($goalprogressamount)
-    const incomingPoints = parseInt(process.env.POINTS) || 0;
-    const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+    // 1. Capture the specific amount added right now
+    const incomingRaw = process.env.POINTS;
+    let incomingPoints = parseInt(incomingRaw);
+    
+    // Safety check for NaN or undefined
+    if (isNaN(incomingPoints)) {
+        console.log("No valid points detected, defaulting change to 0.");
+        incomingPoints = 0;
+    }
 
+    const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
     if (!webhookUrl) {
-        console.error("Error: Missing DISCORD_WEBHOOK_URL environment variable.");
+        console.error("Missing DISCORD_WEBHOOK_URL");
         process.exit(1);
     }
 
-    // 2. Load the previous running total from the JSON file
+    // 2. Load the previous running total
     let previousTotal = 0;
     if (fs.existsSync(PERSISTENCE_FILE)) {
         try {
             const data = JSON.parse(fs.readFileSync(PERSISTENCE_FILE, 'utf8'));
-            previousTotal = data.total_points || 0;
+            previousTotal = parseInt(data.total_points) || 0;
         } catch (e) {
-            console.warn("Could not read persistence file, starting from 0.");
+            console.warn("Could not read persistence file, starting at 0.");
         }
     }
 
-    // 3. Calculate the new running total
-    const totalPoints = previousTotal + incomingPoints;
+    // 3. CALCULATE NEW TOTAL
+    // This allows for negative adjustments (subtraction) but prevents the total from ever going below 0.
+    const totalPoints = Math.max(0, previousTotal + incomingPoints);
 
-    // 4. Calculate current level and next milestone
+    // 4. Calculate Level and Milestone
     let currentLevel = 0;
     for (const [lvl, data] of Object.entries(LEVEL_DATA)) {
         if (totalPoints >= data.points) currentLevel = parseInt(lvl);
@@ -76,16 +82,21 @@ async function main() {
     const pointsNeeded = Math.max(0, LEVEL_DATA[nextLvl].points - totalPoints);
     const nextReward = LEVEL_DATA[nextLvl];
 
-    // 5. Build a list of all unlocked rewards so far
+    // 5. Build unlocked list
     let fullUnlockedList = Object.entries(LEVEL_DATA)
         .filter(([lvl]) => lvl > 0 && lvl <= currentLevel)
         .map(([lvl, data]) => `✅ Level ${lvl}: **${data.reward}**`)
         .join("\n") || "None yet! Reach Level 1 to start.";
     
-    // 6. Assemble the Discord message content
+    // 6. Build the Discord message
+    // If points were subtracted, we show a "Manual Adjustment" note
+    const changeText = incomingPoints >= 0 
+        ? `📈 Added **${incomingPoints.toLocaleString()}** points!` 
+        : `🔧 Manual Adjustment: **${incomingPoints.toLocaleString()}** points.`;
+
     let content = `⭐ **SQUISH PASS UPDATE!**\n` +
                   `**Total Points:** ${totalPoints.toLocaleString()} | **Current Level:** ${currentLevel}\n` +
-                  `*📈 Added **${incomingPoints.toLocaleString()}** points just now!* \n\n` +
+                  `*${changeText}* \n\n` +
                   `**Rewards Unlocked This Month:**\n${fullUnlockedList}\n\n` +
                   `🎯 **Next Milestone:** **${pointsNeeded.toLocaleString()}** more points for **Level ${nextLvl}**\n` +
                   `🎁 **Next Reward:** ${nextReward.reward}\n` +
@@ -95,7 +106,7 @@ async function main() {
     const fileName = `SP-LVL${currentLevel}.png`;
     const imagePath = `./images/${fileName}`;
 
-    // 7. Update Discord using PATCH to avoid creating a new post
+    // 7. Update Discord (PATCH)
     const baseWebhookUrl = new URL(webhookUrl);
     const cleanPath = baseWebhookUrl.pathname.replace(/\/$/, "");
     const targetUrl = `${baseWebhookUrl.origin}${cleanPath}/messages/${TARGET_MESSAGE_ID}?wait=true&thread_id=${THREAD_ID}`;
@@ -103,7 +114,6 @@ async function main() {
     const formData = new FormData();
     const payload = { content: content };
 
-    // Attach the image if it exists in the /images/ folder
     if (fs.existsSync(imagePath)) {
         const imageBuffer = fs.readFileSync(imagePath);
         payload.attachments = [{ id: 0, filename: fileName }];
@@ -113,21 +123,17 @@ async function main() {
     formData.append('payload_json', JSON.stringify(payload));
 
     try {
-        const response = await fetch(targetUrl, { method: 'PATCH', body: formData });
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Discord API error: ${response.status} - ${errorText}`);
-        }
+        await fetch(targetUrl, { method: 'PATCH', body: formData });
         
-        // 8. SAVE the new total back to the JSON file for the next run
+        // 8. SAVE the new total
         fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({ 
             message_id: TARGET_MESSAGE_ID, 
             total_points: totalPoints 
         }, null, 2));
         
-        console.log(`Successfully updated to Level ${currentLevel}. New Total: ${totalPoints} (+${incomingPoints})`);
+        console.log(`Success! Total: ${totalPoints} (Change: ${incomingPoints})`);
     } catch (err) {
-        console.error("Failed to update Discord post:", err);
+        console.error("Update failed:", err);
     }
 }
 
