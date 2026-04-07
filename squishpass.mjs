@@ -41,7 +41,7 @@ const LEVEL_DATA = {
 };
 
 async function main() {
-    // 1. Capture the amount using parseFloat to allow decimals
+    // 1. Capture incoming points from Mix It Up as a Float
     const incomingRaw = process.env.POINTS;
     let incomingPoints = parseFloat(incomingRaw);
     
@@ -56,7 +56,7 @@ async function main() {
         process.exit(1);
     }
 
-    // 2. Load previous total (also as a float)
+    // 2. Load previous total from JSON memory
     let previousTotal = 0;
     if (fs.existsSync(PERSISTENCE_FILE)) {
         try {
@@ -67,11 +67,10 @@ async function main() {
         }
     }
 
-    // 3. Calculate New Total and fix decimal precision issues
-    // Using .toFixed(2) then parseFloat again prevents "floating point errors" like 19.20000000004
+    // 3. Calculate New Total (Rounded to 2 decimals)
     const totalPoints = parseFloat(Math.max(0, previousTotal + incomingPoints).toFixed(2));
 
-    // 4. Calculate Level based on decimals
+    // 4. Calculate Level and Milestone Data
     let currentLevel = 0;
     for (const [lvl, data] of Object.entries(LEVEL_DATA)) {
         if (totalPoints >= data.points) currentLevel = parseInt(lvl);
@@ -81,13 +80,13 @@ async function main() {
     const pointsNeeded = parseFloat(Math.max(0, LEVEL_DATA[nextLvl].points - totalPoints).toFixed(2));
     const nextReward = LEVEL_DATA[nextLvl];
 
-    // 5. Build unlocked list
+    // 5. Build unlocked list for Discord
     let fullUnlockedList = Object.entries(LEVEL_DATA)
         .filter(([lvl]) => lvl > 0 && lvl <= currentLevel)
         .map(([lvl, data]) => `✅ Level ${lvl}: **${data.reward}**`)
         .join("\n") || "None yet! Reach Level 1 to start.";
     
-    // 6. Build the Discord message
+    // 6. Assemble Discord Content
     const changeText = incomingPoints >= 0 
         ? `📈 Added **${incomingPoints}** points!` 
         : `🔧 Manual Adjustment: **${incomingPoints}** points.`;
@@ -104,7 +103,7 @@ async function main() {
     const fileName = `SP-LVL${currentLevel}.png`;
     const imagePath = `./images/${fileName}`;
 
-    // 7. Update Discord (PATCH)
+    // 7. Update Discord Post
     const baseWebhookUrl = new URL(webhookUrl);
     const cleanPath = baseWebhookUrl.pathname.replace(/\/$/, "");
     const targetUrl = `${baseWebhookUrl.origin}${cleanPath}/messages/${TARGET_MESSAGE_ID}?wait=true&thread_id=${THREAD_ID}`;
@@ -123,13 +122,20 @@ async function main() {
     try {
         await fetch(targetUrl, { method: 'PATCH', body: formData });
         
-        // 8. SAVE the new total (keeping the decimal)
-        fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({ 
-            message_id: TARGET_MESSAGE_ID, 
-            total_points: totalPoints 
-        }, null, 2));
+        // 8. SAVE THE DATA (Expanded for Mix It Up visibility)
+        const finalData = {
+            message_id: TARGET_MESSAGE_ID,
+            total_points: totalPoints,
+            current_level: currentLevel,
+            points_needed: pointsNeeded,
+            next_reward: nextReward.reward,
+            image_name: fileName,
+            last_update: new Date().toISOString()
+        };
+
+        fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify(finalData, null, 2));
         
-        console.log(`Success! Total: ${totalPoints} (Change: ${incomingPoints})`);
+        console.log(`Successfully updated. New Total: ${totalPoints}`);
     } catch (err) {
         console.error("Update failed:", err);
     }
