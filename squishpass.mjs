@@ -41,11 +41,10 @@ const LEVEL_DATA = {
 };
 
 async function main() {
-    // 1. Capture the specific amount added right now
+    // 1. Capture the amount using parseFloat to allow decimals
     const incomingRaw = process.env.POINTS;
-    let incomingPoints = parseInt(incomingRaw);
+    let incomingPoints = parseFloat(incomingRaw);
     
-    // Safety check for NaN or undefined
     if (isNaN(incomingPoints)) {
         console.log("No valid points detected, defaulting change to 0.");
         incomingPoints = 0;
@@ -57,29 +56,29 @@ async function main() {
         process.exit(1);
     }
 
-    // 2. Load the previous running total
+    // 2. Load previous total (also as a float)
     let previousTotal = 0;
     if (fs.existsSync(PERSISTENCE_FILE)) {
         try {
             const data = JSON.parse(fs.readFileSync(PERSISTENCE_FILE, 'utf8'));
-            previousTotal = parseInt(data.total_points) || 0;
+            previousTotal = parseFloat(data.total_points) || 0;
         } catch (e) {
             console.warn("Could not read persistence file, starting at 0.");
         }
     }
 
-    // 3. CALCULATE NEW TOTAL
-    // This allows for negative adjustments (subtraction) but prevents the total from ever going below 0.
-    const totalPoints = Math.max(0, previousTotal + incomingPoints);
+    // 3. Calculate New Total and fix decimal precision issues
+    // Using .toFixed(2) then parseFloat again prevents "floating point errors" like 19.20000000004
+    const totalPoints = parseFloat(Math.max(0, previousTotal + incomingPoints).toFixed(2));
 
-    // 4. Calculate Level and Milestone
+    // 4. Calculate Level based on decimals
     let currentLevel = 0;
     for (const [lvl, data] of Object.entries(LEVEL_DATA)) {
         if (totalPoints >= data.points) currentLevel = parseInt(lvl);
     }
 
     const nextLvl = currentLevel < MAX_LEVEL ? currentLevel + 1 : MAX_LEVEL;
-    const pointsNeeded = Math.max(0, LEVEL_DATA[nextLvl].points - totalPoints);
+    const pointsNeeded = parseFloat(Math.max(0, LEVEL_DATA[nextLvl].points - totalPoints).toFixed(2));
     const nextReward = LEVEL_DATA[nextLvl];
 
     // 5. Build unlocked list
@@ -89,16 +88,15 @@ async function main() {
         .join("\n") || "None yet! Reach Level 1 to start.";
     
     // 6. Build the Discord message
-    // If points were subtracted, we show a "Manual Adjustment" note
     const changeText = incomingPoints >= 0 
-        ? `📈 Added **${incomingPoints.toLocaleString()}** points!` 
-        : `🔧 Manual Adjustment: **${incomingPoints.toLocaleString()}** points.`;
+        ? `📈 Added **${incomingPoints}** points!` 
+        : `🔧 Manual Adjustment: **${incomingPoints}** points.`;
 
     let content = `⭐ **SQUISH PASS UPDATE!**\n` +
-                  `**Total Points:** ${totalPoints.toLocaleString()} | **Current Level:** ${currentLevel}\n` +
+                  `**Total Points:** ${totalPoints} | **Current Level:** ${currentLevel}\n` +
                   `*${changeText}* \n\n` +
                   `**Rewards Unlocked This Month:**\n${fullUnlockedList}\n\n` +
-                  `🎯 **Next Milestone:** **${pointsNeeded.toLocaleString()}** more points for **Level ${nextLvl}**\n` +
+                  `🎯 **Next Milestone:** **${pointsNeeded}** more points for **Level ${nextLvl}**\n` +
                   `🎁 **Next Reward:** ${nextReward.reward}\n` +
                   `*${nextReward.description}*\n\n` +
                   `💖 **Support the stream to unlock the next milestone!**`;
@@ -125,7 +123,7 @@ async function main() {
     try {
         await fetch(targetUrl, { method: 'PATCH', body: formData });
         
-        // 8. SAVE the new total
+        // 8. SAVE the new total (keeping the decimal)
         fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({ 
             message_id: TARGET_MESSAGE_ID, 
             total_points: totalPoints 
