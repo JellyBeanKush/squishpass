@@ -39,8 +39,9 @@ const LEVEL_DATA = {
 };
 
 async function main() {
-    const rawPoints = process.env.POINTS;
-    const points = (rawPoints && rawPoints !== "undefined" && rawPoints !== "NaN") ? parseInt(rawPoints) : 0;
+    // 1. Get the increment from Mix It Up
+    const rawIncomingPoints = process.env.POINTS;
+    const incomingPoints = (rawIncomingPoints && rawIncomingPoints !== "undefined" && rawIncomingPoints !== "NaN") ? parseInt(rawIncomingPoints) : 0;
     const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
 
     if (!webhookUrl) {
@@ -48,13 +49,27 @@ async function main() {
         process.exit(1);
     }
 
+    // 2. Load existing data (Points + Message ID)
+    let lastData = { message_id: null, total_points: 0 };
+    if (fs.existsSync(PERSISTENCE_FILE)) {
+        try {
+            lastData = JSON.parse(fs.readFileSync(PERSISTENCE_FILE));
+        } catch (e) {
+            console.error("Error reading persistence file, starting fresh.");
+        }
+    }
+
+    // 3. Add the new points to the total
+    const totalPoints = (lastData.total_points || 0) + incomingPoints;
+
+    // 4. Determine Current Level based on Total Points
     let currentLevel = 0;
     for (const [lvl, data] of Object.entries(LEVEL_DATA)) {
-        if (points >= data.points) currentLevel = parseInt(lvl);
+        if (totalPoints >= data.points) currentLevel = parseInt(lvl);
     }
 
     const nextLvl = currentLevel < MAX_LEVEL ? currentLevel + 1 : MAX_LEVEL;
-    const pointsNeeded = Math.max(0, LEVEL_DATA[nextLvl].points - points);
+    const pointsNeeded = Math.max(0, LEVEL_DATA[nextLvl].points - totalPoints);
 
     let fullUnlockedList = Object.entries(LEVEL_DATA)
         .filter(([lvl]) => lvl > 0 && lvl <= currentLevel)
@@ -64,29 +79,19 @@ async function main() {
     let nextReward = LEVEL_DATA[nextLvl];
     
     let content = `⭐ **SQUISH PASS UPDATE!**\n` +
-                  `Current Level: **${currentLevel}** | Points: **${points.toLocaleString()}**\n` +
-                  `*Bonus hours go into the monthly Time Bank (no rollover).* \n\n` +
+                  `Current Level: **${currentLevel}** | Total Points: **${totalPoints.toLocaleString()}**\n` +
+                  `*Added **${incomingPoints.toLocaleString()}** points this interaction!* \n\n` +
                   `**Rewards Unlocked This Month:**\n${fullUnlockedList}\n\n` +
                   `🎯 **Goal:** **${pointsNeeded.toLocaleString()}** points for **Level ${nextLvl}**\n` +
                   `🎁 **Next Up:** **${nextReward.reward}**\n*${nextReward.description}*\n\n` +
-                  `✨ **How to Add to the Pass:**\n` +
-                  `* **Digital:** Subscriptions, Bits, Gifted Subs, Tangias, Blerps, and Powerups!\n` +
-                  `* **Daily:** Use your daily Channel Point option in chat.\n` +
-                  `* **Gifts:** Sending food or IRL/Digital gifts also boosts our progress!\n\n` +
                   `💖 **Support the stream to unlock the next milestone!**`;
 
-    // UPDATED FILENAME LOGIC
     const fileName = `SP-LVL${currentLevel}.png`;
     const imagePath = `./images/${fileName}`;
 
-    let lastData = { message_id: null };
-    if (fs.existsSync(PERSISTENCE_FILE)) {
-        lastData = JSON.parse(fs.readFileSync(PERSISTENCE_FILE));
-    }
-
+    // 5. Discord Webhook Logic
     const baseWebhookUrl = new URL(webhookUrl);
     const cleanPath = baseWebhookUrl.pathname.replace(/\/$/, "");
-    
     let targetUrl;
     let method = 'POST';
 
@@ -115,17 +120,15 @@ async function main() {
 
     try {
         let response = await fetch(targetUrl, { method, body: formData });
-
-        if (!response.ok && method === 'PATCH') {
-            method = 'POST';
-            const postUrl = `${baseWebhookUrl.origin}${cleanPath}?wait=true&thread_id=${THREAD_ID}`;
-            response = await fetch(postUrl, { method: 'POST', body: formData });
-        }
-
         const result = await response.json();
+        
         if (result.id) {
-            fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({ message_id: result.id }, null, 2));
-            console.log(`Success! Updated Level ${currentLevel}.`);
+            // 6. SAVE the updated Total Points and Message ID
+            fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({ 
+                message_id: result.id, 
+                total_points: totalPoints 
+            }, null, 2));
+            console.log(`Success! Updated Level ${currentLevel}. Total Points: ${totalPoints}`);
         }
     } catch (err) {
         console.error("Critical error:", err);
