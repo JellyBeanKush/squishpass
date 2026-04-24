@@ -1,25 +1,32 @@
-name: Manual SquishPass Set
+name: Manual SquishPass Sync
 on:
   workflow_dispatch:
     inputs:
       new_total:
-        description: 'Set total points to:'
+        description: 'Set total points to (e.g. 120.4)'
         required: true
-        default: '120.4'
 
 jobs:
-  update-data:
+  sync-bot:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Update JSON
+
+      - name: Force Update JSON
         run: |
-          # Uses jq to update the specific value in your json file
+          # Use jq to update the total_points field in your persistence file
           jq '.total_points = ${{ github.event.inputs.new_total }}' last_post_data.json > temp.json && mv temp.json last_post_data.json
-      - name: Commit and Push
+
+      - name: Run Bot Logic
         run: |
-          git config --global user.name "Manual Override"
+          # This triggers your actual bot script to recalculate levels/milestones
+          # Change "main.py" to whatever your logic script is named
+          python main.py 
+
+      - name: Commit and Push Results
+        run: |
+          git config --global user.name "SquishPass Sync"
           git config --global user.email "bot@github.com"
           git add last_post_data.json
-          git commit -m "Manual sync: ${{ github.event.inputs.new_total }}"
+          git commit -m "Manual sync to ${{ github.event.inputs.new_total }} - Logic Recalculated"
           git push
