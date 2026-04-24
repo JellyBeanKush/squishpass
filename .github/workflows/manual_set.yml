@@ -1,0 +1,25 @@
+name: Manual SquishPass Set
+on:
+  workflow_dispatch:
+    inputs:
+      new_total:
+        description: 'Set total points to:'
+        required: true
+        default: '120.4'
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update JSON
+        run: |
+          # Uses jq to update the specific value in your json file
+          jq '.total_points = ${{ github.event.inputs.new_total }}' last_post_data.json > temp.json && mv temp.json last_post_data.json
+      - name: Commit and Push
+        run: |
+          git config --global user.name "Manual Override"
+          git config --global user.email "bot@github.com"
+          git add last_post_data.json
+          git commit -m "Manual sync: ${{ github.event.inputs.new_total }}"
+          git push
