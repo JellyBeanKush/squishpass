@@ -4,40 +4,31 @@ import fs from 'fs';
 const PERSISTENCE_FILE = "last_post_data.json";
 const THREAD_ID = "1476295145371467908"; 
 const TARGET_MESSAGE_ID = "1476320490220949686"; 
-const MAX_LEVEL = 30;
+const MAX_LEVEL = 21; // Updated to match your new 21-level pass
 
 const LEVEL_DATA = {
     0: { points: 0, reward: "Squish Pass Start", description: "The journey begins! Help us reach Level 1 to kick off the monthly rewards." },
-    1: { points: 1, reward: "Lit Club", description: "Our monthly Book Club! We pick a title and dive deep into the story and characters." },
-    2: { points: 5, reward: "+5 Hours", description: "Adding 5 extra hours to our monthly stream bank for more hangouts." },
-    3: { points: 10, reward: "Music Madness", description: "The ultimate Songbattle.io showdown with the community." },
-    4: { points: 15, reward: "x2 Multiplier", description: "Everyone earns double points for the remainder of the month." },
-    5: { points: 22, reward: "+5 Hours", description: "Another 5 hours added to the monthly stream bank." },
-    6: { points: 30, reward: "Art Pack", description: "Custom mobile/desktop wallpapers and printable coloring pages drop." },
-    7: { points: 40, reward: "Tier Lists", description: "A marathon stream where we rank everything with chat." },
-    8: { points: 60, reward: "+5 Hours", description: "5 more hours of bonus stream time are now in the bank." },
-    9: { points: 80, reward: "Movie Night", description: "Discord hangout to watch films together." },
-    10: { points: 100, reward: "$25 Giveaway", description: "Choice of $25 in Cash, V-Bucks, Gift Cards, or Merch credit." },
-    11: { points: 120, reward: "+5 Hours", description: "Adding another 5-hour block to the monthly schedule." },
-    12: { points: 140, reward: "x3 Multiplier", description: "The point multiplier is upgraded to x3." },
-    13: { points: 165, reward: "Arts 'n Crafts", description: "DIY project, painting, or crafting live on stream." },
-    14: { points: 190, reward: "+5 Hours", description: "5 more bonus hours added to the time bank." },
-    15: { points: 215, reward: "Karaoke", description: "Singing our favorite tracks live on the mic." },
-    16: { points: 240, reward: "Tabletop Games", description: "Board games, puzzles, or classic card games on stream." },
-    17: { points: 265, reward: "+5 Hours", description: "5 more hours of bonus content unlocked." },
-    18: { points: 290, reward: "x4 Multiplier", description: "Everyone is now earning x4 points." },
-    19: { points: 315, reward: "+5 Hours", description: "Another 5-hour deposit into the monthly time bank." },
-    20: { points: 345, reward: "$25 Giveaway", description: "Level 20 Milestone! Another chance to win a $25 prize." },
-    21: { points: 375, reward: "+5 Hours", description: "Adding 5 more bonus hours to the monthly bank." },
-    22: { points: 405, reward: "Cooking Stream", description: "Preparing a fancy meal live on camera." },
-    23: { points: 435, reward: "Park 'n Picnic", description: "IRL nature stream featuring a hike and outdoor picnic." },
-    24: { points: 465, reward: "Workout Stream", description: "Exercise and fitness regimen live for the community." },
-    25: { points: 495, reward: "+5 Hours", description: "One of the last 5-hour boosts for the month." },
-    26: { points: 525, reward: "Shirtless 'til Reset", description: "Challenge active until the monthly reset." },
-    27: { points: 560, reward: "x5 Multiplier", description: "MAX MULTIPLIER! x5 points for all viewers." },
-    28: { points: 595, reward: "+5 Hours", description: "The final 5-hour addition to the monthly bank." },
-    29: { points: 630, reward: "Special Outfit", description: "A debut of a special community-chosen outfit!" },
-    30: { points: 666, reward: "$25 Giveaway", description: "THE FINAL BOSS! One last $25 value giveaway!" }
+    1: { points: 1, reward: "Music Madness (Launch)", description: "The ultimate monthly kickoff event!" },
+    2: { points: 5, reward: "+7 Hours", description: "Adding 7 extra hours to the monthly stream bank." },
+    3: { points: 10, reward: "x2 Honeybuns", description: "Point multiplier activated! Everyone earns double." },
+    4: { points: 20, reward: "Monthly Art Pack", description: "Custom digital goodies and coloring pages for the community." },
+    5: { points: 35, reward: "Weekly TV Time", description: "A regular slot for watching and reacting to shows together." },
+    6: { points: 55, reward: "+7 Hours", description: "Another 7-hour deposit into the stream time bank." },
+    7: { points: 80, reward: "Tabletop Games Stream", description: "Board games and classic tabletop fun live on stream." },
+    8: { points: 110, reward: "x3 Honeybuns", description: "Multiplier upgraded! Now earning triple points." },
+    9: { points: 140, reward: "Movie Night #1", description: "The first community cinema hangout of the month." },
+    10: { points: 175, reward: "+7 Hours", description: "7 more hours of bonus content unlocked." },
+    11: { points: 210, reward: "Arts and Crafts Stream", description: "Getting creative with a live DIY or art project." },
+    12: { points: 250, reward: "x4 Honeybuns", description: "Multiplier boost! Quadruple points are now active." },
+    13: { points: 290, reward: "Movie Night #2", description: "Another night for films and Discord hanging." },
+    14: { points: 330, reward: "Cooking Together Stream", description: "Preparing a meal live with the community." },
+    15: { points: 370, reward: "+7 Hours", description: "Adding the final 7-hour block to the bank." },
+    16: { points: 415, reward: "IRL Park Stream", description: "Taking the stream outdoors for a park visit and nature walk." },
+    17: { points: 460, reward: "Workout Stream", description: "A dedicated fitness and exercise session." },
+    18: { points: 510, reward: "x5 Honeybuns", description: "MAX MULTIPLIER! x5 points for all viewers." },
+    19: { points: 560, reward: "Shirtless ‘til next Pass", description: "A long-term challenge active until the next reset." },
+    20: { points: 610, reward: "+7 Hours", description: "Final bonus time deposit for the month." },
+    21: { points: 666, reward: "Cosplay Stream (Date TBD)", description: "The Final Boss reward! A full cosplay debut stream." }
 };
 
 async function main() {
