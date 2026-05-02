@@ -100,12 +100,24 @@ async function main() {
     const targetUrl = `${baseWebhookUrl.origin}${cleanPath}/messages/${TARGET_MESSAGE_ID}?wait=true&thread_id=${THREAD_ID}`;
 
     const formData = new FormData();
-    const payload = { content: content };
+    
+    /** 
+     * FIX: We initialize 'attachments' as an empty array. 
+     * This tells Discord to remove any existing images on the message before adding the new one.
+     */
+    const payload = { 
+        content: content,
+        attachments: [] 
+    };
 
     if (fs.existsSync(imagePath)) {
         const imageBuffer = fs.readFileSync(imagePath);
+        // Map the new file to attachment ID 0
         payload.attachments = [{ id: 0, filename: fileName }];
         formData.append('files[0]', new Blob([imageBuffer]), fileName);
+        console.log(`Image found: ${fileName}. Uploading...`);
+    } else {
+        console.warn(`Warning: Image ${imagePath} not found. Updating text only.`);
     }
 
     formData.append('payload_json', JSON.stringify(payload));
@@ -113,7 +125,7 @@ async function main() {
     try {
         await fetch(targetUrl, { method: 'PATCH', body: formData });
         
-        // 8. SAVE THE DATA (Expanded for Mix It Up visibility)
+        // 8. SAVE THE DATA
         const finalData = {
             message_id: TARGET_MESSAGE_ID,
             total_points: totalPoints,
