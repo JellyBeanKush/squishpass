@@ -4,7 +4,7 @@ import fs from 'fs';
 const PERSISTENCE_FILE = "last_post_data.json";
 const THREAD_ID = "1476295145371467908"; 
 const TARGET_MESSAGE_ID = "1476320490220949686"; 
-const MAX_LEVEL = 21; // Updated to match your new 21-level pass
+const MAX_LEVEL = 21; 
 
 const LEVEL_DATA = {
     0: { points: 0, reward: "Squish Pass Start", description: "The journey begins! Help us reach Level 1 to kick off the monthly rewards." },
@@ -91,7 +91,10 @@ async function main() {
                   `*${nextReward.description}*\n\n` +
                   `💖 **Support the stream to unlock the next milestone!**`;
 
-    const fileName = `SP-LVL${currentLevel}.png`;
+    /** 
+     * UPDATED FILENAME: Added spaces to match your "SP - LVL#.png" format.
+     */
+    const fileName = `SP - LVL${currentLevel}.png`;
     const imagePath = `./images/${fileName}`;
 
     // 7. Update Discord Post
@@ -102,8 +105,7 @@ async function main() {
     const formData = new FormData();
     
     /** 
-     * FIX: We initialize 'attachments' as an empty array. 
-     * This tells Discord to remove any existing images on the message before adding the new one.
+     * FIX: Clears the existing image from the message first.
      */
     const payload = { 
         content: content,
@@ -115,9 +117,10 @@ async function main() {
         // Map the new file to attachment ID 0
         payload.attachments = [{ id: 0, filename: fileName }];
         formData.append('files[0]', new Blob([imageBuffer]), fileName);
-        console.log(`Image found: ${fileName}. Uploading...`);
+        console.log(`✅ Success: Found "${fileName}". Uploading...`);
     } else {
-        console.warn(`Warning: Image ${imagePath} not found. Updating text only.`);
+        console.error(`❌ Error: Image not found at ${imagePath}`);
+        console.log(`Make sure your files in the /images folder use the "SP - LVL#.png" format.`);
     }
 
     formData.append('payload_json', JSON.stringify(payload));
