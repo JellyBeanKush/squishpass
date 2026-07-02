@@ -5,6 +5,8 @@ import sharp from 'sharp';
 const PERSISTENCE_FILE = "last_post_data.json";
 const THREAD_ID = "1476295145371467908"; 
 const MAX_LEVEL = 21; 
+const BASE_IMAGE = './images/base_board.png';
+const OUTPUT_IMAGE = './images/final_discord_board.jpg';
 
 const LEVEL_DATA = {
     0: { points: 0, reward: "Squish Pass Start", description: "The journey begins! Help us reach Level 1 to kick off the monthly rewards." },
@@ -26,26 +28,22 @@ const LEVEL_DATA = {
     16: { points: 415, reward: "FIELD TRIP", description: "Taking the stream outdoors live for an exciting community excursion." },
     17: { points: 460, reward: "X5 HONEY BUNS", description: "MAX MULTIPLIER! Everyone earns x5 points on the channel." },
     18: { points: 510, reward: "SHIRTLESS TIL RESET", description: "A long-term challenge active until the next reset." },
-    19: 560, reward: "+10 HOURS", description: "Another 10 bonus hours deposited into the stream bank." },
+    19: { points: 560, reward: "+10 HOURS", description: "Another 10 bonus hours deposited into the stream bank." },
     20: { points: 610, reward: "MERCH GIVEAWAY", description: "Exclusive custom community merchandise given away live to viewers." },
     21: { points: 666, reward: "DRAG STREAM", description: "The ultimate pass reward! A special drag streaming event!" }
 };
 
 async function generateBoardImage(currentLevel) {
-    const baseImagePath = './images/base_board.png';
-    const outputPath = './images/final_discord_board.png';
+    // Start with the base image
+    let pipeline = sharp(BASE_IMAGE);
 
-    // Start processing base image
-    let pipeline = sharp(baseImagePath);
-
-    // Logic: Apply grayscale to the whole board
-    // Then composite your "unlocked" layer on top if you have one
-    // For now, this just confirms we can process and save the file
-    await pipeline
-        .grayscale() 
-        .toFile(outputPath);
+    // DYNAMIC IMAGE LOGIC:
+    // To show locked/unlocked levels, you would add .composite() here.
+    // Example: pipeline = pipeline.composite([{ input: './images/lock.png', top: 100, left: 100 }]);
     
-    return outputPath;
+    // For now, this saves the base image as the output for Discord
+    await pipeline.toFile(OUTPUT_IMAGE);
+    return OUTPUT_IMAGE;
 }
 
 async function main() {
@@ -58,10 +56,14 @@ async function main() {
 
     let lastPostData = { message_id: null, total_points: 0 };
     if (fs.existsSync(PERSISTENCE_FILE)) {
-        lastPostData = JSON.parse(fs.readFileSync(PERSISTENCE_FILE, 'utf8'));
+        try {
+            lastPostData = JSON.parse(fs.readFileSync(PERSISTENCE_FILE, 'utf8'));
+        } catch (e) { console.warn("Could not read persistence file."); }
     }
 
-    const totalPoints = parseFloat(Math.max(0, (lastPostData.total_points || 0) + incomingPoints).toFixed(2));
+    // Logic: Force override if points are provided
+    const totalPoints = parseFloat(incomingPoints.toFixed(2)); 
+
     let currentLevel = 0;
     for (const [lvl, data] of Object.entries(LEVEL_DATA)) {
         if (totalPoints >= data.points) currentLevel = parseInt(lvl);
@@ -71,13 +73,12 @@ async function main() {
     const pointsNeeded = parseFloat(Math.max(0, LEVEL_DATA[nextLvl].points - totalPoints).toFixed(2));
     const nextReward = LEVEL_DATA[nextLvl];
 
-    // Build Discord text
     let fullUnlockedList = Object.entries(LEVEL_DATA)
         .filter(([lvl]) => lvl > 0 && lvl <= currentLevel)
         .map(([lvl, data]) => `✅ Level ${lvl}: **${data.reward}**`)
         .join("\n") || "None yet! Reach Level 1 to start.";
     
-    const changeText = incomingPoints >= 0 ? `📈 Added **${incomingPoints}** points!` : `🔧 Manual Adjustment: **${incomingPoints}** points.`;
+    const changeText = `Updated to **${totalPoints}** points!`;
 
     let content = `⭐ **SQUISH PASS UPDATE!**\n` +
                   `**Total Points:** ${totalPoints} | **Current Level:** ${currentLevel}\n` +
@@ -91,6 +92,7 @@ async function main() {
     // Process Image
     const finalImagePath = await generateBoardImage(currentLevel);
 
+    // Discord Post logic
     const baseWebhookUrl = new URL(webhookUrl);
     const cleanPath = baseWebhookUrl.pathname.replace(/\/$/, "");
     let targetUrl = `${baseWebhookUrl.origin}${cleanPath}?wait=true&thread_id=${THREAD_ID}`;
@@ -103,8 +105,11 @@ async function main() {
 
     const formData = new FormData();
     const imageBuffer = fs.readFileSync(finalImagePath);
-    formData.append('files[0]', new Blob([imageBuffer]), 'final_discord_board.png');
-    formData.append('payload_json', JSON.stringify({ content: content, attachments: [{ id: 0, filename: 'final_discord_board.png' }] }));
+    formData.append('files[0]', new Blob([imageBuffer]), 'squishpass_board.jpg');
+    formData.append('payload_json', JSON.stringify({ 
+        content: content, 
+        attachments: [{ id: 0, filename: 'squishpass_board.jpg' }] 
+    }));
 
     const response = await fetch(targetUrl, { method: method, body: formData });
     const responseData = await response.json();
