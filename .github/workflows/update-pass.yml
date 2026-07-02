@@ -18,6 +18,10 @@ jobs:
         with:
           node-version: 20
 
+      # --- THIS IS THE STEP TO ADD ---
+      - name: Install dependencies
+        run: npm install
+
       - name: Sync and Run
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -44,7 +48,6 @@ jobs:
           git add last_post_data.json
           if ! git diff --cached --quiet; then
             git commit -m "Update persistence [skip ci]"
-            # Use --rebase on push to handle rapid updates if points change quickly
             git pull --rebase origin main
             git push origin main
           else
