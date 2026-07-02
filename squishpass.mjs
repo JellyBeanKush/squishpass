@@ -3,7 +3,6 @@ import fs from 'fs';
 // --- CONFIGURATION ---
 const PERSISTENCE_FILE = "last_post_data.json";
 const THREAD_ID = "1476295145371467908"; 
-const TARGET_MESSAGE_ID = "1476320490220949686"; 
 const MAX_LEVEL = 21; 
 
 const LEVEL_DATA = {
@@ -32,7 +31,6 @@ const LEVEL_DATA = {
 };
 
 async function main() {
-    // 1. Capture incoming points from Mix It Up as a Float
     const incomingRaw = process.env.POINTS;
     let incomingPoints = parseFloat(incomingRaw);
     
@@ -47,21 +45,16 @@ async function main() {
         process.exit(1);
     }
 
-    // 2. Load previous total from JSON memory
-    let previousTotal = 0;
+    let lastPostData = { message_id: null, total_points: 0 };
     if (fs.existsSync(PERSISTENCE_FILE)) {
         try {
-            const data = JSON.parse(fs.readFileSync(PERSISTENCE_FILE, 'utf8'));
-            previousTotal = parseFloat(data.total_points) || 0;
+            lastPostData = JSON.parse(fs.readFileSync(PERSISTENCE_FILE, 'utf8'));
         } catch (e) {
-            console.warn("Could not read persistence file, starting at 0.");
+            console.warn("Could not read persistence file, starting fresh.");
         }
     }
 
-    // 3. Calculate New Total (Rounded to 2 decimals)
-    const totalPoints = parseFloat(Math.max(0, previousTotal + incomingPoints).toFixed(2));
-
-    // 4. Calculate Level and Milestone Data
+    const totalPoints = parseFloat(Math.max(0, (lastPostData.total_points || 0) + incomingPoints).toFixed(2));
     let currentLevel = 0;
     for (const [lvl, data] of Object.entries(LEVEL_DATA)) {
         if (totalPoints >= data.points) currentLevel = parseInt(lvl);
@@ -71,16 +64,12 @@ async function main() {
     const pointsNeeded = parseFloat(Math.max(0, LEVEL_DATA[nextLvl].points - totalPoints).toFixed(2));
     const nextReward = LEVEL_DATA[nextLvl];
 
-    // 5. Build unlocked list for Discord
     let fullUnlockedList = Object.entries(LEVEL_DATA)
         .filter(([lvl]) => lvl > 0 && lvl <= currentLevel)
         .map(([lvl, data]) => `✅ Level ${lvl}: **${data.reward}**`)
         .join("\n") || "None yet! Reach Level 1 to start.";
     
-    // 6. Assemble Discord Content
-    const changeText = incomingPoints >= 0 
-        ? `📈 Added **${incomingPoints}** points!` 
-        : `🔧 Manual Adjustment: **${incomingPoints}** points.`;
+    const changeText = incomingPoints >= 0 ? `📈 Added **${incomingPoints}** points!` : `🔧 Manual Adjustment: **${incomingPoints}** points.`;
 
     let content = `⭐ **SQUISH PASS UPDATE!**\n` +
                   `**Total Points:** ${totalPoints} | **Current Level:** ${currentLevel}\n` +
@@ -91,55 +80,44 @@ async function main() {
                   `*${nextReward.description}*\n\n` +
                   `💖 **Support the stream to unlock the next milestone!**`;
 
-    /** * UPDATED FILENAME: Added spaces to match your "SP - LVL#.png" format.
-     */
     const fileName = `SP - LVL${currentLevel}.png`;
     const imagePath = `./images/${fileName}`;
 
-    // 7. Update Discord Post
     const baseWebhookUrl = new URL(webhookUrl);
     const cleanPath = baseWebhookUrl.pathname.replace(/\/$/, "");
-    const targetUrl = `${baseWebhookUrl.origin}${cleanPath}/messages/${TARGET_MESSAGE_ID}?wait=true&thread_id=${THREAD_ID}`;
+    
+    // Logic to decide between creating new message or editing old one
+    let targetUrl = `${baseWebhookUrl.origin}${cleanPath}?wait=true&thread_id=${THREAD_ID}`;
+    let method = 'POST';
+
+    if (lastPostData.message_id) {
+        targetUrl = `${baseWebhookUrl.origin}${cleanPath}/messages/${lastPostData.message_id}?wait=true&thread_id=${THREAD_ID}`;
+        method = 'PATCH';
+    }
 
     const formData = new FormData();
-    
-    /** * FIX: Clears the existing image from the message first.
-     */
-    const payload = { 
-        content: content,
-        attachments: [] 
-    };
+    const payload = { content: content, attachments: [] };
 
     if (fs.existsSync(imagePath)) {
         const imageBuffer = fs.readFileSync(imagePath);
-        // Map the new file to attachment ID 0
         payload.attachments = [{ id: 0, filename: fileName }];
         formData.append('files[0]', new Blob([imageBuffer]), fileName);
-        console.log(`✅ Success: Found "${fileName}". Uploading...`);
-    } else {
-        console.error(`❌ Error: Image not found at ${imagePath}`);
-        console.log(`Make sure your files in the /images folder use the "SP - LVL#.png" format.`);
     }
 
     formData.append('payload_json', JSON.stringify(payload));
 
     try {
-        await fetch(targetUrl, { method: 'PATCH', body: formData });
+        const response = await fetch(targetUrl, { method: method, body: formData });
+        const responseData = await response.json();
         
-        // 8. SAVE THE DATA
         const finalData = {
-            message_id: TARGET_MESSAGE_ID,
+            message_id: method === 'POST' ? responseData.id : lastPostData.message_id,
             total_points: totalPoints,
-            current_level: currentLevel,
-            points_needed: pointsNeeded,
-            next_reward: nextReward.reward,
-            image_name: fileName,
             last_update: new Date().toISOString()
         };
 
         fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify(finalData, null, 2));
-        
-        console.log(`Successfully updated. New Total: ${totalPoints}`);
+        console.log(`Successfully updated. New Total: ${totalPoints} (Action: ${method})`);
     } catch (err) {
         console.error("Update failed:", err);
     }
