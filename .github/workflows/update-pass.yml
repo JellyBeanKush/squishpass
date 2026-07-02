@@ -27,10 +27,15 @@ jobs:
           git config --global user.name 'SquishBot'
           git config --global user.email 'bot@github.com'
           
-          # 2. Rebase to ensure we have the latest message_id from the JSON
+          # 2. Rebase to ensure we have the latest data
           git pull --rebase origin main
           
-          # 3. Run the script
+          # 3. Initialize persistence file if missing
+          if [ ! -f last_post_data.json ]; then
+            echo '{"message_id": null, "total_points": 0}' > last_post_data.json
+          fi
+          
+          # 4. Run the script
           node squishpass.mjs
 
       - name: Push New ID
