@@ -8,27 +8,27 @@ const MAX_LEVEL = 21;
 
 const LEVEL_DATA = {
     0: { points: 0, reward: "Squish Pass Start", description: "The journey begins! Help us reach Level 1 to kick off the monthly rewards." },
-    1: { points: 1, reward: "Music Madness (Launch)", description: "The ultimate monthly kickoff event!" },
-    2: { points: 5, reward: "+7 Hours", description: "Adding 7 extra hours to the monthly stream bank." },
-    3: { points: 10, reward: "x2 Honeybuns", description: "Point multiplier activated! Everyone earns double." },
-    4: { points: 20, reward: "Monthly Art Pack", description: "Custom digital goodies and coloring pages for the community." },
-    5: { points: 35, reward: "Weekly TV Time", description: "A regular slot for watching and reacting to shows together." },
-    6: { points: 55, reward: "+7 Hours", description: "Another 7-hour deposit into the stream time bank." },
-    7: { points: 80, reward: "Tabletop Games Stream", description: "Board games and classic tabletop fun live on stream." },
-    8: { points: 110, reward: "x3 Honeybuns", description: "Multiplier upgraded! Now earning triple points." },
-    9: { points: 140, reward: "Movie Night #1", description: "The first community cinema hangout of the month." },
-    10: { points: 175, reward: "+7 Hours", description: "7 more hours of bonus content unlocked." },
-    11: { points: 210, reward: "Arts and Crafts Stream", description: "Getting creative with a live DIY or art project." },
-    12: { points: 250, reward: "x4 Honeybuns", description: "Multiplier boost! Quadruple points are now active." },
-    13: { points: 290, reward: "Movie Night #2", description: "Another night for films and Discord hanging." },
-    14: { points: 330, reward: "Cooking Together Stream", description: "Preparing a meal live with the community." },
-    15: { points: 370, reward: "+7 Hours", description: "Adding the final 7-hour block to the bank." },
-    16: { points: 415, reward: "IRL Park Stream", description: "Taking the stream outdoors for a park visit and nature walk." },
-    17: { points: 460, reward: "Workout Stream", description: "A dedicated fitness and exercise session." },
-    18: { points: 510, reward: "x5 Honeybuns", description: "MAX MULTIPLIER! x5 points for all viewers." },
-    19: { points: 560, reward: "Shirtless ‘til next Pass", description: "A long-term challenge active until the next reset." },
-    20: { points: 610, reward: "+7 Hours", description: "Final bonus time deposit for the month." },
-    21: { points: 666, reward: "Cosplay Stream (Date TBD)", description: "The Final Boss reward! A full cosplay debut stream." }
+    1: { points: 1, reward: "HBS ART PACK", description: "Custom digital goodies and community coloring pages unlocked!" },
+    2: { points: 5, reward: "MUSIC MADNESS", description: "The ultimate music tournament tracking stream event!" },
+    3: { points: 10, reward: "+10 HOURS", description: "Adding 10 extra hours to the monthly stream time bank." },
+    4: { points: 20, reward: "X2 HONEY BUNS", description: "Double channel multiplier activated! Points multiplier is live." },
+    5: { points: 35, reward: "WEEKLY WATCH PARTIES", description: "Watching TV on stream, then going to Discord for a movie!" },
+    6: { points: 55, reward: "TIER LISTS", description: "A dedicated stream for tier lists ranking community favorites." },
+    7: { points: 80, reward: "+10 HOURS", description: "Another 10-hour deposit added directly into the stream bank." },
+    8: { points: 110, reward: "X3 HONEY BUNS", description: "Point multiplier upgraded! Triple points are now active." },
+    9: { points: 140, reward: "TABLETOP GAMES", description: "Classic tabletop fun and board games live on stream." },
+    10: { points: 175, reward: "COOKING & COCKTAILS", description: "Preparing a meal and mixing drinks live with the community." },
+    11: { points: 210, reward: "+10 HOURS", description: "10 more bonus hours of stream content unlocked." },
+    12: { points: 250, reward: "X4 HONEY BUNS", description: "Multiplier boost! Quadruple points are now active." },
+    13: { points: 290, reward: "CHAT CHOOSES GAME", description: "The viewers completely dictate what game is played live." },
+    14: { points: 330, reward: "WORKOUT STREAM", description: "A dedicated fitness and exercise session live." },
+    15: { points: 370, reward: "+10 HOURS", description: "Adding a fresh 10-hour block into the time reserve." },
+    16: { points: 415, reward: "FIELD TRIP", description: "Taking the stream outdoors live for an exciting community excursion." },
+    17: { points: 460, reward: "X5 HONEY BUNS", description: "MAX MULTIPLIER! Everyone earns x5 points on the channel." },
+    18: { points: 510, reward: "SHIRTLESS TIL RESET", description: "A long-term challenge active until the next reset." },
+    19: { points: 560, reward: "+10 HOURS", description: "Another 10 bonus hours deposited into the stream bank." },
+    20: { points: 610, reward: "MERCH GIVEAWAY", description: "Exclusive custom community merchandise given away live to viewers." },
+    21: { points: 666, reward: "DRAG STREAM", description: "The ultimate pass reward! A special drag streaming event!" }
 };
 
 async function main() {
@@ -91,8 +91,7 @@ async function main() {
                   `*${nextReward.description}*\n\n` +
                   `💖 **Support the stream to unlock the next milestone!**`;
 
-    /** 
-     * UPDATED FILENAME: Added spaces to match your "SP - LVL#.png" format.
+    /** * UPDATED FILENAME: Added spaces to match your "SP - LVL#.png" format.
      */
     const fileName = `SP - LVL${currentLevel}.png`;
     const imagePath = `./images/${fileName}`;
@@ -104,8 +103,7 @@ async function main() {
 
     const formData = new FormData();
     
-    /** 
-     * FIX: Clears the existing image from the message first.
+    /** * FIX: Clears the existing image from the message first.
      */
     const payload = { 
         content: content,
