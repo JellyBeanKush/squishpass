@@ -35,60 +35,48 @@ const LEVEL_DATA = {
 
 // --- AUTOMATED STRIKE-THROUGH (LOCKED) TRACKER GENERATOR ---
 async function generateBoardImage(currentLevel) {
-    // 🎯 Pinpoint vertical centers of the text tracks
-    const rowY = {
-        1: 385, 
-        2: 845, 
-        3: 1305 
-    };
-    
+    const rowY = { 1: 385, 2: 845, 3: 1305 };
     const startX = 180;  
     const endX = 2570;   
     const totalRowWidth = endX - startX;
     
-    // Radius for a perfect 180-degree semicircular turn between rows (460px height difference / 2)
-    const radius = 230; 
+    // The radius is half the distance between rows (845 - 385 = 460; 460 / 2 = 230)
+    const arcRadius = 230; 
 
     let svgParts = [];
     
-    // --- ROW 1 (Levels 1-7, Left to Right) ---
+    // --- ROW 1 ---
     if (currentLevel < 7) {
         let r1Start = currentLevel === 0 ? startX : startX + ((currentLevel / 7) * totalRowWidth);
-        // Trim the line short of endX so the curve can handle the tile 7 area smoothly
-        let r1End = Math.min(endX, endX - radius + (radius * 0.5)); 
-        if (r1Start < endX) {
-            svgParts.push(`<line x1="${r1Start}" y1="${rowY[1]}" x2="${endX}" y2="${rowY[1]}" />`);
-        }
+        svgParts.push(`<line x1="${r1Start}" y1="${rowY[1]}" x2="${endX}" y2="${rowY[1]}" />`);
     }
 
-    // --- CURVE 1 (Row 1 to Row 2 connection at the right edge) ---
-    // Uses a precise cubic bezier that hugs the internal center line of tiles 7 and 8 without overshooting
+    // --- CURVE 1 (Right Turn) ---
+    // Using Arc 'A' for a perfect 180-degree turn
     if (currentLevel < 8) {
-        svgParts.push(`<path d="M ${endX} ${rowY[1]} C ${endX + 115} ${rowY[1]}, ${endX + 115} ${rowY[2]}, ${endX} ${rowY[2]}" />`);
+        svgParts.push(`<path d="M ${endX} ${rowY[1]} A ${arcRadius} ${arcRadius} 0 0 1 ${endX} ${rowY[2]}" />`);
     }
 
-    // --- ROW 2 (Levels 8-14, Right to Left) ---
+    // --- ROW 2 ---
     if (currentLevel < 14) {
         let r2Start = currentLevel <= 7 ? endX : endX - (((currentLevel - 7) / 7) * totalRowWidth);
         svgParts.push(`<line x1="${r2Start}" y1="${rowY[2]}" x2="${startX}" y2="${rowY[2]}" />`);
     }
 
-    // --- CURVE 2 (Row 2 to Row 3 connection at the left edge) ---
-    // Uses a precise cubic bezier that keeps the line floating perfectly mid-track on tiles 14 and 15
+    // --- CURVE 2 (Left Turn) ---
     if (currentLevel < 15) {
-        svgParts.push(`<path d="M ${startX} ${rowY[2]} C ${startX - 115} ${rowY[2]}, ${startX - 115} ${rowY[3]}, ${startX} ${rowY[3]}" />`);
+        svgParts.push(`<path d="M ${startX} ${rowY[2]} A ${arcRadius} ${arcRadius} 0 0 0 ${startX} ${rowY[3]}" />`);
     }
 
-    // --- ROW 3 (Levels 15-21, Left to Right) ---
+    // --- ROW 3 ---
     if (currentLevel < 21) {
         let r3Start = currentLevel <= 14 ? startX : startX + (((currentLevel - 14) / 7) * totalRowWidth);
         svgParts.push(`<line x1="${r3Start}" y1="${rowY[3]}" x2="${endX}" y2="${rowY[3]}" />`);
     }
 
-    // 🎨 Layout Styling Setup
-    const coreLineWidth = "24";     // Thicker, bolder strike-through bar
-    const glowLineWidth = "44";     // Ultra-wide footprint underneath for the aura effect
-    const glowColor = "#00ffff";    // Bright Neon Cyan glow (Matches the layout accents)
+    const coreLineWidth = "24";     
+    const glowLineWidth = "44";     
+    const glowColor = "#00ffff";    
 
     const svgOverlay = Buffer.from(`
         <svg width="2752" height="1536" xmlns="http://www.w3.org/2000/svg">
@@ -101,11 +89,9 @@ async function generateBoardImage(currentLevel) {
                     </feMerge>
                 </filter>
             </defs>
-            
             <g fill="none" stroke="${glowColor}" stroke-width="${glowLineWidth}" stroke-linecap="round" filter="url(#neon-blur)" opacity="0.85">
                 ${svgParts.join('\n')}
             </g>
-            
             <g fill="none" stroke="#ffffff" stroke-width="${coreLineWidth}" stroke-linecap="round">
                 ${svgParts.join('\n')}
             </g>
@@ -119,6 +105,7 @@ async function generateBoardImage(currentLevel) {
     return OUTPUT_IMAGE;
 }
 
+// ... main() function remains the same ...
 async function main() {
     const incomingPoints = parseFloat(process.env.POINTS || 0);
     let lastPostData = { message_id: null, total_points: 0 };
@@ -153,7 +140,6 @@ async function main() {
 
     const finalImagePath = await generateBoardImage(currentLevel);
 
-    // --- PARSE WEBHOOK URL CLEANLY ---
     const parsedSecret = new URL(process.env.DISCORD_WEBHOOK_URL.trim());
     const pathParts = parsedSecret.pathname.split('/').filter(Boolean);
     const baseWebhookEndpoint = `${parsedSecret.origin}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}`;
@@ -168,7 +154,6 @@ async function main() {
     finalUrl.searchParams.set('thread_id', THREAD_ID);
     const url = finalUrl.toString();
 
-    // --- PREPARE MULTIPART FORM DATA PAYLOAD ---
     const formData = new FormData();
     formData.append('files[0]', new Blob([fs.readFileSync(finalImagePath)]), 'board.jpg');
     formData.append('payload_json', JSON.stringify({ 
@@ -176,43 +161,21 @@ async function main() {
         attachments: [{ id: 0, filename: 'board.jpg' }] 
     }));
 
-    // --- CORRECTLY ROUTE POST VS PATCH PAYLOADS ---
     let res;
     if (lastPostData.message_id) {
-        console.log("Sending PATCH request with text and updated tracking image...");
-        res = await fetch(url, {
-            method: 'PATCH',
-            body: formData
-        });
+        res = await fetch(url, { method: 'PATCH', body: formData });
     } else {
-        console.log("Sending POST request with new image attachment layout...");
-        res = await fetch(url, { 
-            method: 'POST', 
-            body: formData 
-        });
+        res = await fetch(url, { method: 'POST', body: formData });
     }
-    
-    console.log(`Discord Response Status: ${res.status} ${res.statusText}`);
     
     const responseText = await res.text();
-    console.log(`Raw Discord Response: ${responseText}`);
-
-    let data;
-    if (responseText) {
-        try {
-            data = JSON.parse(responseText);
-        } catch (e) {
-            console.error("Failed to parse Discord response as JSON.");
-        }
-    }
-
     if (!res.ok) {
         console.error(`Discord API Error! Status: ${res.status}.`);
         return;
     }
     
     fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({
-        message_id: lastPostData.message_id || (data ? data.id : null),
+        message_id: lastPostData.message_id || (responseText ? JSON.parse(responseText).id : null),
         total_points: totalPoints,
         current_level: currentLevel,
         points_needed: pointsNeeded,
