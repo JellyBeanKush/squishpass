@@ -42,7 +42,7 @@ const LEVEL_DATA = {
 // --- UPDATED IMAGE GENERATOR ---
 async function generateBoardImage(currentLevel) {
     const level = Math.min(Math.max(currentLevel, 0), 21);
-    const overlayPath = `./squishpass/images/SPO ${level}.png`;
+    const overlayPath = `./images/SPO ${level}.png`;
 
     console.log("Attempting to overlay:", overlayPath);
 
