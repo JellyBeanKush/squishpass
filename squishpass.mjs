@@ -33,12 +33,13 @@ const LEVEL_DATA = {
     21: { points: 666, reward: "DRAG STREAM", description: "The ultimate reward!" }
 };
 
-// --- AUTOMATED UNDERLINE TRACKER GENERATOR ---
+// --- AUTOMATED STRIKE-THROUGH (LOCKED) TRACKER GENERATOR ---
 async function generateBoardImage(currentLevel) {
+    // 🎯 Set to your exact row center coordinates
     const rowY = {
-        1: 525,
-        2: 985,
-        3: 1445
+        1: 385, 
+        2: 845, 
+        3: 1305 
     };
     
     const startX = 180;  
@@ -46,34 +47,37 @@ async function generateBoardImage(currentLevel) {
     const totalRowWidth = endX - startX;
 
     let svgParts = [];
-    let remainingLevels = currentLevel;
     
-    // --- ROW 1 ---
-    let row1Progress = Math.min(remainingLevels, 7);
-    let r1X2 = startX + ((row1Progress / 7) * totalRowWidth);
-    
-    if (row1Progress > 0) {
-        svgParts.push(`<line x1="${startX}" y1="${rowY[1]}" x2="${r1X2}" y2="${rowY[1]}" stroke="#00ffff" stroke-width="20" stroke-linecap="round" />`);
-    }
-    remainingLevels -= row1Progress;
+    // 🎨 Line Style Configuration
+    const lineColor = "#ff3333"; // Crimson Red for the "crossed-out" look
+    const lineWidth = "16";       // Thickness of the strike-through line
 
-    // --- ROW 2 ---
-    if (remainingLevels > 0) {
-        let row2Progress = Math.min(remainingLevels, 7);
-        let r2X2 = endX - ((row2Progress / 7) * totalRowWidth);
-        
-        svgParts.push(`<path d="M ${endX} ${rowY[1]} C ${endX + 200} ${rowY[1]}, ${endX + 200} ${rowY[2]}, ${endX} ${rowY[2]}" fill="none" stroke="#00ffff" stroke-width="20" />`);
-        svgParts.push(`<line x1="${endX}" y1="${rowY[2]}" x2="${r2X2}" y2="${rowY[2]}" stroke="#00ffff" stroke-width="20" stroke-linecap="round" />`);
-        remainingLevels -= row2Progress;
+    // --- ROW 1 (Levels 1-7, Left to Right) ---
+    if (currentLevel < 7) {
+        let r1Start = currentLevel === 0 ? startX : startX + ((currentLevel / 7) * totalRowWidth);
+        svgParts.push(`<line x1="${r1Start}" y1="${rowY[1]}" x2="${endX}" y2="${rowY[1]}" stroke="${lineColor}" stroke-width="${lineWidth}" stroke-linecap="round" />`);
     }
 
-    // --- ROW 3 ---
-    if (remainingLevels > 0) {
-        let row3Progress = Math.min(remainingLevels, 7);
-        let r3X2 = startX + ((row3Progress / 7) * totalRowWidth);
-        
-        svgParts.push(`<path d="M ${startX} ${rowY[2]} C ${startX - 200} ${rowY[2]}, ${startX - 200} ${rowY[3]}, ${startX} ${rowY[3]}" fill="none" stroke="#00ffff" stroke-width="20" />`);
-        svgParts.push(`<line x1="${startX}" y1="${rowY[3]}" x2="${r3X2}" y2="${rowY[3]}" stroke="#00ffff" stroke-width="20" stroke-linecap="round" />`);
+    // --- CURVE 1 (Row 1 to Row 2 connection at the right edge) ---
+    if (currentLevel < 8) {
+        svgParts.push(`<path d="M ${endX} ${rowY[1]} C ${endX + 200} ${rowY[1]}, ${endX + 200} ${rowY[2]}, ${endX} ${rowY[2]}" fill="none" stroke="${lineColor}" stroke-width="${lineWidth}" />`);
+    }
+
+    // --- ROW 2 (Levels 8-14, Right to Left) ---
+    if (currentLevel < 14) {
+        let r2Start = currentLevel <= 7 ? endX : endX - (((currentLevel - 7) / 7) * totalRowWidth);
+        svgParts.push(`<line x1="${r2Start}" y1="${rowY[2]}" x2="${startX}" y2="${rowY[2]}" stroke="${lineColor}" stroke-width="${lineWidth}" stroke-linecap="round" />`);
+    }
+
+    // --- CURVE 2 (Row 2 to Row 3 connection at the left edge) ---
+    if (currentLevel < 15) {
+        svgParts.push(`<path d="M ${startX} ${rowY[2]} C ${startX - 200} ${rowY[2]}, ${startX - 200} ${rowY[3]}, ${startX} ${rowY[3]}" fill="none" stroke="${lineColor}" stroke-width="${lineWidth}" />`);
+    }
+
+    // --- ROW 3 (Levels 15-21, Left to Right) ---
+    if (currentLevel < 21) {
+        let r3Start = currentLevel <= 14 ? startX : startX + (((currentLevel - 14) / 7) * totalRowWidth);
+        svgParts.push(`<line x1="${r3Start}" y1="${rowY[3]}" x2="${endX}" y2="${rowY[3]}" stroke="${lineColor}" stroke-width="${lineWidth}" stroke-linecap="round" />`);
     }
 
     const svgOverlay = Buffer.from(`
