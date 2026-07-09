@@ -116,9 +116,10 @@ async function main() {
         .map(([lvl, data]) => `✅ Level ${lvl}: **${data.reward}**`)
         .join("\n") || "None yet!";
     
+    // --- UPDATED PROGRESS MESSAGE LAYOUT ---
     let content = `⭐ **SQUISH PASS UPDATE!**\n**Total Points:** ${totalPoints} | **Current Level:** ${currentLevel}\n\n` +
                   `**Rewards Unlocked:**\n${fullUnlockedList}\n\n` +
-                  `🎯 **Next Milestone:** ${pointsNeeded} points for **Level ${nextLvl}**\n` +
+                  `🎯 **Next Milestone:** ${pointsNeeded} points to unlock **${LEVEL_DATA[nextLvl].reward}**\n` +
                   `💖 **Support the stream to unlock the next milestone!**`;
 
     const finalImagePath = await generateBoardImage(currentLevel);
