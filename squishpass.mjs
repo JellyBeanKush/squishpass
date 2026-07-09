@@ -132,7 +132,43 @@ async function main() {
         ? `${process.env.DISCORD_WEBHOOK_URL}/messages/${lastPostData.message_id}?thread_id=${THREAD_ID}`
         : `${process.env.DISCORD_WEBHOOK_URL}?thread_id=${THREAD_ID}`;
     
+    // --- DIAGNOSTIC DISCORD FETCH ---
+    console.log(`Sending request to URL: ${url.replace(process.env.DISCORD_WEBHOOK_URL, "WEBHOOK_SECRET")}`);
+    
     const res = await fetch(url, { method: lastPostData.message_id ? 'PATCH' : 'POST', body: formData });
+    
+    console.log(`Discord Response Status: ${res.status} ${res.statusText}`);
+    
+    const responseText = await res.text();
+    console.log(`Raw Discord Response: ${responseText}`);
+
+    let data;
+    try {
+        data = JSON.parse(responseText);
+    } catch (e) {
+        console.error("Failed to parse Discord response as JSON. Check raw response above.");
+        return;
+    }
+
+    if (!res.ok) {
+        console.error(`Discord API Error! Status: ${res.status}. Message: ${JSON.stringify(data)}`);
+        return;
+    }
+    
+    // Save data back down to the file only if the Discord post succeeded
+    fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({
+        message_id: lastPostData.message_id || data.id,
+        total_points: totalPoints,
+        current_level: currentLevel,
+        points_needed: pointsNeeded,
+        next_reward: LEVEL_DATA[nextLvl].reward,
+        image_name: "board.jpg",
+        last_update: new Date().toISOString()
+    }, null, 2));
+    console.log("State successfully synchronized with Discord and saved!");
+}
+
+main();
     const data = await res.json();
     
     fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({
