@@ -16,8 +16,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24 # Upgraded to clear deprecation warning
-          cache: 'npm'
+          node-version: 24 # Keeping it on 24 to stay modern and clear the warning
 
       - name: Install dependencies
         run: npm install
