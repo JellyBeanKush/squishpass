@@ -44,42 +44,28 @@ const LEVEL_DATA = {
 // Uses a persistent path to ensure line continuity.
 // --- IMAGE GENERATOR ---
 async function generateBoardImage(currentLevel) {
-    
-    // 1. PLACE YOUR 5-POINT COORDINATE DEFINITIONS HERE
-    const TURN_1_POINTS = {
-        p1: [2305, 385], // Start
-        p2: [2400, 385], // Ease in
-        p3: [2500, 475], // Peak/Apex
-        p4: [2400, 565], // Ease out
-        p5: [2501, 565]  // End
-    };
+    // 1. Define the 5-point segments for the whole board
+    // We break the path into chunks: Start -> Turn 1 -> Row 2 -> Turn 2 -> Row 3
+    const segments = [
+    { min: 0, max: 7,  path: "M 135 385 L 2309 385" }, 
+    { min: 7, max: 8,  path: "C 2309 385, 2500 475, 2400 565, 2309 845" }, // Turn 1 ends at 2309, 845
+    { min: 8, max: 14, path: "L 455 845" }, // Now draws from 2309, 845 to 455, 845
+    { min: 14, max: 15, path: "C 455 845, 250 1065, 350 1309, 455 1309" }, 
+    { min: 15, max: 21, path: "L 2625 1309" } // Row 3 starts at 455, 1309 and ends at 2625, 1309
+];
 
-    const TURN_2_POINTS = {
-        p1: [453, 845],  // Start
-        p2: [350, 845],  // Ease in
-        p3: [250, 1065], // Peak/Apex
-        p4: [350, 1309], // Ease out
-        p5: [453, 1309]  // End
-    };
+    // 2. Filter: Only include segments that are "Locked" (Current Level < Max Level)
+    // If currentLevel is 21, activeSegments will be empty (no line).
+    // If currentLevel is 0, all segments are included (full line).
+    const activePaths = segments
+        .filter(seg => currentLevel < seg.max)
+        .map(seg => seg.path);
 
-    // 2. BUILD THE PATH STRING USING THOSE DEFINITIONS
-    // This connects your rows and turns into one continuous, unbreakable line
-    const fullPath = `M 180 385 L ${TURN_1_POINTS.p1.join(' ')} 
-                      C ${TURN_1_POINTS.p2.join(' ')}, ${TURN_1_POINTS.p3.join(' ')}, ${TURN_1_POINTS.p4.join(' ')} ${TURN_1_POINTS.p5.join(' ')} 
-                      L 453 845 
-                      C ${TURN_2_POINTS.p2.join(' ')}, ${TURN_2_POINTS.p3.join(' ')}, ${TURN_2_POINTS.p4.join(' ')} ${TURN_2_POINTS.p5.join(' ')} 
-                      L 2570 1305`;
+    const fullPath = activePaths.join(' ');
 
-    // 3. THE REST OF YOUR EXISTING GENERATOR LOGIC FOLLOWS BELOW...
-    const pathLength = 3000;
-    const progressPercent = Math.min(currentLevel / 21, 1);
-    const strokeDash = `${progressPercent * pathLength} ${pathLength}`;
-
-    
-    // ... rest of the SVG building and Sharp composite logic
-    
-    // Construct the SVG Buffer using the template literal approach for readability
-    const svgOverlay = Buffer.from(`
+    // 3. Construct SVG
+    // Note: We only add the path to the SVG if fullPath is not empty
+    const svgOverlay = fullPath ? Buffer.from(`
         <svg width="2752" height="1536" xmlns="http://www.w3.org/2000/svg">
             <defs>
                 <filter id="neon-blur" x="-30%" y="-30%" width="160%" height="160%">
@@ -91,19 +77,13 @@ async function generateBoardImage(currentLevel) {
                 </filter>
             </defs>
             <path d="${fullPath}" fill="none" stroke="#00ffff" stroke-width="50" stroke-linecap="round" filter="url(#neon-blur)" opacity="0.8" />
-            <path d="${fullPath}" fill="none" stroke="#ffffff" stroke-width="20" stroke-linecap="round" stroke-dasharray="${strokeDash}" />
+            <path d="${fullPath}" fill="none" stroke="#ffffff" stroke-width="20" stroke-linecap="round" />
         </svg>
-    `);
+    `) : Buffer.from(`<svg width="2752" height="1536" xmlns="http://www.w3.org/2000/svg"></svg>`);
 
-    // Use Sharp to process the image and composite the SVG overlay onto the board
-    try {
-        await sharp(BASE_IMAGE)
-            .composite([{ input: svgOverlay, top: 0, left: 0 }])
-            .toFile(OUTPUT_IMAGE);
-    } catch (err) {
-        console.error("Error during image generation process:", err);
-        throw err;
-    }
+    await sharp(BASE_IMAGE)
+        .composite([{ input: svgOverlay, top: 0, left: 0 }])
+        .toFile(OUTPUT_IMAGE);
 
     return OUTPUT_IMAGE;
 }
