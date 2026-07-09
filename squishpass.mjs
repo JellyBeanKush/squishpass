@@ -123,17 +123,19 @@ async function main() {
 
     const finalImagePath = await generateBoardImage(currentLevel);
 
-    // --- BULLETPROOF URL ROUTING ---
-    let targetUrlStr = lastPostData.message_id 
-        ? `${process.env.DISCORD_WEBHOOK_URL}/messages/${lastPostData.message_id}`
-        : `${process.env.DISCORD_WEBHOOK_URL}`;
-
-    targetUrlStr = targetUrlStr.replace(/(?<!:)\/\/+/g, '/');
-    const finalUrl = new URL(targetUrlStr);
+    // --- PARSE WEBHOOK URL CLEANLY ---
+    const parsedSecret = new URL(process.env.DISCORD_WEBHOOK_URL.trim());
+    const pathParts = parsedSecret.pathname.split('/').filter(Boolean);
+    const baseWebhookEndpoint = `${parsedSecret.origin}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}`;
     
-    if (!finalUrl.searchParams.has('thread_id')) {
-        finalUrl.searchParams.append('thread_id', THREAD_ID);
+    let finalUrl;
+    if (lastPostData.message_id) {
+        finalUrl = new URL(`${baseWebhookEndpoint}/messages/${lastPostData.message_id}`);
+    } else {
+        finalUrl = new URL(baseWebhookEndpoint);
     }
+    
+    finalUrl.searchParams.set('thread_id', THREAD_ID);
     const url = finalUrl.toString();
 
     // --- CORRECTLY ROUTE POST VS PATCH PAYLOADS ---
