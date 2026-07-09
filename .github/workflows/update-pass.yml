@@ -16,7 +16,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24 # Upgraded to clear deprecation warning
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm install
@@ -38,7 +39,7 @@ jobs:
             echo '{"message_id": null, "total_points": 0}' > last_post_data.json
           fi
           
-          # 4. Run the script (this will now read old total and add incoming points)
+          # 4. Run the script
           node squishpass.mjs
 
       - name: Push New ID and Points
