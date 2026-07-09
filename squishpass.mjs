@@ -12,7 +12,7 @@ const OUTPUT_IMAGE = './images/final_discord_board.jpg';
 // Q command syntax: M startX startY Q midX midY, endX endY
 const PATHS = {
     TURN_1: "M 2305 385 Q 2453 405, 2501 565", 
-    TURN_2: "M 453 845 Q 249 1065, 453 1309"
+    TURN_2: "M 2499 613 Q 2465 771, 2305 843"
 };
 
 const LEVEL_DATA = {
