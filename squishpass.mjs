@@ -5,8 +5,7 @@ import sharp from 'sharp';
 const PERSISTENCE_FILE = "last_post_data.json";
 const THREAD_ID = "1476295145371467908"; 
 const MAX_LEVEL = 21; 
-const BASE_IMAGE = './images/base_board.png'; 
-const LOCK_OVERLAY = './images/lock_overlay.png'; 
+const BASE_IMAGE = './images/base_board.png'; // Ensure your board is renamed to this
 const OUTPUT_IMAGE = './images/final_discord_board.jpg';
 
 const LEVEL_DATA = {
@@ -34,28 +33,69 @@ const LEVEL_DATA = {
     21: { points: 666, reward: "DRAG STREAM", description: "The ultimate reward!" }
 };
 
+// --- AUTOMATED UNDERLINE TRACKER GENERATOR ---
 async function generateBoardImage(currentLevel) {
-    let pipeline = sharp(BASE_IMAGE);
-    const overlays = [];
+    // Underline positions (shifted down 140px from the row centers)
+    const rowY = {
+        1: 525,
+        2: 985,
+        3: 1445
+    };
+    
+    // Horizontal start and end bounds based on your canvas width
+    const startX = 180;  
+    const endX = 2570;   
+    const totalRowWidth = endX - startX;
 
-    const startX = 50; 
-    const startY = 50;
-    const stepX = 250; 
-    const stepY = 300;
+    let svgParts = [];
+    let remainingLevels = currentLevel;
+    
+    // --- ROW 1 (Levels 1 to 7: Left to Right) ---
+    let row1Progress = Math.min(remainingLevels, 7);
+    let r1X2 = startX + ((row1Progress / 7) * totalRowWidth);
+    
+    if (row1Progress > 0) {
+        svgParts.push(`<line x1="${startX}" y1="${rowY[1]}" x2="${r1X2}" y2="${rowY[1]}" stroke="#00ffff" stroke-width="20" stroke-linecap="round" />`);
+    }
+    remainingLevels -= row1Progress;
 
-    for (let i = 1; i <= MAX_LEVEL; i++) {
-        if (i > currentLevel) {
-            let col = (i - 1) % 7;
-            let row = Math.floor((i - 1) / 7);
-            overlays.push({ 
-                input: LOCK_OVERLAY, 
-                top: startY + (row * stepY), 
-                left: startX + (col * stepX) 
-            });
-        }
+    // --- ROW 2 (Levels 8 to 14: Right to Left) ---
+    if (remainingLevels > 0) {
+        let row2Progress = Math.min(remainingLevels, 7);
+        let r2X2 = endX - ((row2Progress / 7) * totalRowWidth);
+        
+        // Custom smooth U-turn on the right side connecting the underlines
+        svgParts.push(`<path d="M ${endX} ${rowY[1]} C ${endX + 200} ${rowY[1]}, ${endX + 200} ${rowY[2]}, ${endX} ${rowY[2]}" fill="none" stroke="#00ffff" stroke-width="20" />`);
+        
+        // Draw the underline backward along row 2
+        svgParts.push(`<line x1="${endX}" y1="${rowY[2]}" x2="${r2X2}" y2="${rowY[2]}" stroke="#00ffff" stroke-width="20" stroke-linecap="round" />`);
+        remainingLevels -= row2Progress;
     }
 
-    await pipeline.composite(overlays).toFile(OUTPUT_IMAGE);
+    // --- ROW 3 (Levels 15 to 21: Left to Right) ---
+    if (remainingLevels > 0) {
+        let row3Progress = Math.min(remainingLevels, 7);
+        let r3X2 = startX + ((row3Progress / 7) * totalRowWidth);
+        
+        // Custom smooth U-turn on the left side connecting the underlines
+        svgParts.push(`<path d="M ${startX} ${rowY[2]} C ${startX - 200} ${rowY[2]}, ${startX - 200} ${rowY[3]}, ${startX} ${rowY[3]}" fill="none" stroke="#00ffff" stroke-width="20" />`);
+        
+        // Draw the underline forward along row 3
+        svgParts.push(`<line x1="${startX}" y1="${rowY[3]}" x2="${r3X2}" y2="${rowY[3]}" stroke="#00ffff" stroke-width="20" stroke-linecap="round" />`);
+    }
+
+    // Assemble the clean vector overlay
+    const svgOverlay = Buffer.from(`
+        <svg width="2752" height="1536" xmlns="http://www.w3.org/2000/svg">
+            ${svgParts.join('\n')}
+        </svg>
+    `);
+
+    // Flatten the tracking track over your base asset
+    await sharp(BASE_IMAGE)
+        .composite([{ input: svgOverlay, top: 0, left: 0 }])
+        .toFile(OUTPUT_IMAGE);
+
     return OUTPUT_IMAGE;
 }
 
@@ -71,7 +111,7 @@ async function main() {
         }
     }
 
-    // FIX: Add the new incoming points to our running total instead of overwriting it
+    // Add the new incoming points to our running total instead of overwriting it
     const totalPoints = parseFloat((lastPostData.total_points + incomingPoints).toFixed(2)); 
     
     let currentLevel = 0;
@@ -99,22 +139,4 @@ async function main() {
     formData.append('payload_json', JSON.stringify({ content: content, attachments: [{ id: 0, filename: 'board.jpg' }] }));
 
     const url = lastPostData.message_id 
-        ? `${process.env.DISCORD_WEBHOOK_URL}/messages/${lastPostData.message_id}?wait=true&thread_id=${THREAD_ID}`
-        : `${process.env.DISCORD_WEBHOOK_URL}?wait=true&thread_id=${THREAD_ID}`;
-
-    const res = await fetch(url, { method: lastPostData.message_id ? 'PATCH' : 'POST', body: formData });
-    const data = await res.json();
-    
-   // Save ALL calculated data back down to the file so Mix It Up can read it
-fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({
-    message_id: lastPostData.message_id || data.id,
-    total_points: totalPoints,
-    current_level: currentLevel,
-    points_needed: pointsNeeded,
-    next_reward: LEVEL_DATA[nextLvl].reward,
-    image_name: "board.jpg",
-    last_update: new Date().toISOString()
-}, null, 2));
-}
-
-main();
+        ? `${process.env.DISCORD_WEBHOOK_URL}/messages/${lastPostData.message_id}?
