@@ -8,6 +8,20 @@ const MAX_LEVEL = 21;
 const BASE_IMAGE = './images/base_board.png'; 
 const OUTPUT_IMAGE = './images/final_discord_board.jpg';
 
+// --- YOU CAN MANUALLY DEFINE CURVES HERE ---
+// Format: M [start] Q [middle/control_point] [end]
+const CURVE_DEFINITIONS = {
+    "TURN_1": "M 2301 385 Q 2501 585, 2305 845", // Custom path for the first turn
+    "TURN_2": "M 453 845 Q 249 1065, 453 1309"   // You can add your next turn coordinates here
+};
+
+const LAYOUT_COORDINATES = {
+    ROW_Y: { 1: 385, 2: 845, 3: 1305 },
+    X_START: 180,
+    X_END: 2570
+};
+
+// ... (LEVEL_DATA remains the same as previous) ...
 const LEVEL_DATA = {
     0: { points: 0, reward: "Squish Pass Start", description: "The journey begins!" },
     1: { points: 1, reward: "HBS ART PACK", description: "Custom digital goodies!" },
@@ -35,43 +49,40 @@ const LEVEL_DATA = {
 
 // --- AUTOMATED STRIKE-THROUGH (LOCKED) TRACKER GENERATOR ---
 async function generateBoardImage(currentLevel) {
-    const rowY = { 1: 385, 2: 845, 3: 1305 };
-    const startX = 180;  
-    const endX = 2570;   
-    const totalRowWidth = endX - startX;
-    
-    // The radius is half the distance between rows (845 - 385 = 460; 460 / 2 = 230)
-    const arcRadius = 230; 
+    const { ROW_Y, X_START, X_END } = LAYOUT_COORDINATES;
+    const totalRowWidth = X_END - X_START;
 
     let svgParts = [];
     
     // --- ROW 1 ---
     if (currentLevel < 7) {
-        let r1Start = currentLevel === 0 ? startX : startX + ((currentLevel / 7) * totalRowWidth);
-        svgParts.push(`<line x1="${r1Start}" y1="${rowY[1]}" x2="${endX}" y2="${rowY[1]}" />`);
+        let r1End = currentLevel === 0 ? X_START : X_START + ((currentLevel / 7) * totalRowWidth);
+        svgParts.push(`<line x1="${X_START}" y1="${ROW_Y[1]}" x2="${r1End}" y2="${ROW_Y[1]}" />`);
     }
 
-    // --- CURVE 1 (Right Turn) ---
-    // Using Arc 'A' for a perfect 180-degree turn
-    if (currentLevel < 8) {
-        svgParts.push(`<path d="M ${endX} ${rowY[1]} A ${arcRadius} ${arcRadius} 0 0 1 ${endX} ${rowY[2]}" />`);
+    // --- CURVE 1 (Uses your custom coordinates) ---
+    if (currentLevel >= 7) {
+        svgParts.push(`<line x1="${X_START}" y1="${ROW_Y[1]}" x2="2301" y2="385" />`);
+        svgParts.push(`<path d="${CURVE_DEFINITIONS.TURN_1}" />`);
     }
 
     // --- ROW 2 ---
-    if (currentLevel < 14) {
-        let r2Start = currentLevel <= 7 ? endX : endX - (((currentLevel - 7) / 7) * totalRowWidth);
-        svgParts.push(`<line x1="${r2Start}" y1="${rowY[2]}" x2="${startX}" y2="${rowY[2]}" />`);
+    if (currentLevel >= 8 && currentLevel < 14) {
+        let r2Current = 2305 - (((currentLevel - 8) / 6) * (2305 - X_START));
+        svgParts.push(`<line x1="2305" y1="${ROW_Y[2]}" x2="${r2Current}" y2="${ROW_Y[2]}" />`);
+    } else if (currentLevel >= 14) {
+        svgParts.push(`<line x1="2305" y1="${ROW_Y[2]}" x2="${X_START}" y2="${ROW_Y[2]}" />`);
     }
 
     // --- CURVE 2 (Left Turn) ---
-    if (currentLevel < 15) {
-        svgParts.push(`<path d="M ${startX} ${rowY[2]} A ${arcRadius} ${arcRadius} 0 0 0 ${startX} ${rowY[3]}" />`);
+    if (currentLevel >= 14) {
+        svgParts.push(`<path d="${CURVE_DEFINITIONS.TURN_2}" />`);
     }
 
     // --- ROW 3 ---
-    if (currentLevel < 21) {
-        let r3Start = currentLevel <= 14 ? startX : startX + (((currentLevel - 14) / 7) * totalRowWidth);
-        svgParts.push(`<line x1="${r3Start}" y1="${rowY[3]}" x2="${endX}" y2="${rowY[3]}" />`);
+    if (currentLevel >= 15) {
+        let r3Current = currentLevel >= 21 ? X_END : X_START + (((currentLevel - 15) / 6) * (X_END - X_START));
+        svgParts.push(`<line x1="${X_START}" y1="${ROW_Y[3]}" x2="${r3Current}" y2="${ROW_Y[3]}" />`);
     }
 
     const coreLineWidth = "24";     
@@ -105,7 +116,7 @@ async function generateBoardImage(currentLevel) {
     return OUTPUT_IMAGE;
 }
 
-// ... main() function remains the same ...
+// ... (main function stays the same) ...
 async function main() {
     const incomingPoints = parseFloat(process.env.POINTS || 0);
     let lastPostData = { message_id: null, total_points: 0 };
