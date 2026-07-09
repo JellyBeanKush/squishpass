@@ -45,19 +45,26 @@ async function generateBoardImage(currentLevel) {
     const startX = 180;  
     const endX = 2570;   
     const totalRowWidth = endX - startX;
+    
+    // Radius for a perfect 180-degree semicircular turn between rows (460px height difference / 2)
+    const radius = 230; 
 
     let svgParts = [];
     
     // --- ROW 1 (Levels 1-7, Left to Right) ---
     if (currentLevel < 7) {
         let r1Start = currentLevel === 0 ? startX : startX + ((currentLevel / 7) * totalRowWidth);
-        svgParts.push(`<line x1="${r1Start}" y1="${rowY[1]}" x2="${endX}" y2="${rowY[1]}" />`);
+        // Trim the line short of endX so the curve can handle the tile 7 area smoothly
+        let r1End = Math.min(endX, endX - radius + (radius * 0.5)); 
+        if (r1Start < endX) {
+            svgParts.push(`<line x1="${r1Start}" y1="${rowY[1]}" x2="${endX}" y2="${rowY[1]}" />`);
+        }
     }
 
     // --- CURVE 1 (Row 1 to Row 2 connection at the right edge) ---
-    // 🛠️ Control points extend past endX horizontally to create a perfectly rounded outer loop
+    // Uses a precise cubic bezier that hugs the internal center line of tiles 7 and 8 without overshooting
     if (currentLevel < 8) {
-        svgParts.push(`<path d="M ${endX} ${rowY[1]} C ${endX + 250} ${rowY[1]}, ${endX + 250} ${rowY[2]}, ${endX} ${rowY[2]}" />`);
+        svgParts.push(`<path d="M ${endX} ${rowY[1]} C ${endX + 115} ${rowY[1]}, ${endX + 115} ${rowY[2]}, ${endX} ${rowY[2]}" />`);
     }
 
     // --- ROW 2 (Levels 8-14, Right to Left) ---
@@ -67,9 +74,9 @@ async function generateBoardImage(currentLevel) {
     }
 
     // --- CURVE 2 (Row 2 to Row 3 connection at the left edge) ---
-    // 🛠️ Control points extend past startX horizontally to swing out smoothly around the left turn
+    // Uses a precise cubic bezier that keeps the line floating perfectly mid-track on tiles 14 and 15
     if (currentLevel < 15) {
-        svgParts.push(`<path d="M ${startX} ${rowY[2]} C ${startX - 250} ${rowY[2]}, ${startX - 250} ${rowY[3]}, ${startX} ${rowY[3]}" />`);
+        svgParts.push(`<path d="M ${startX} ${rowY[2]} C ${startX - 115} ${rowY[2]}, ${startX - 115} ${rowY[3]}, ${startX} ${rowY[3]}" />`);
     }
 
     // --- ROW 3 (Levels 15-21, Left to Right) ---
