@@ -5,8 +5,8 @@ import sharp from 'sharp';
 const PERSISTENCE_FILE = "last_post_data.json";
 const THREAD_ID = "1476295145371467908"; 
 const MAX_LEVEL = 21; 
-const BASE_IMAGE = './images/base_board.png'; // Ensure your board is renamed to this
-const LOCK_OVERLAY = './images/lock_overlay.png'; // Ensure this exists
+const BASE_IMAGE = './images/base_board.png'; 
+const LOCK_OVERLAY = './images/lock_overlay.png'; 
 const OUTPUT_IMAGE = './images/final_discord_board.jpg';
 
 const LEVEL_DATA = {
@@ -38,7 +38,6 @@ async function generateBoardImage(currentLevel) {
     let pipeline = sharp(BASE_IMAGE);
     const overlays = [];
 
-    // Grid coordinates (Update these X/Y values to align with your specific board image)
     const startX = 50; 
     const startY = 50;
     const stepX = 250; 
@@ -65,10 +64,16 @@ async function main() {
     let lastPostData = { message_id: null, total_points: 0 };
     
     if (fs.existsSync(PERSISTENCE_FILE)) {
-        lastPostData = JSON.parse(fs.readFileSync(PERSISTENCE_FILE, 'utf8'));
+        try {
+            lastPostData = JSON.parse(fs.readFileSync(PERSISTENCE_FILE, 'utf8'));
+        } catch (e) {
+            console.error("Failed to read persistence file, resetting state.", e);
+        }
     }
 
-    const totalPoints = parseFloat(incomingPoints.toFixed(2)); 
+    // FIX: Add the new incoming points to our running total instead of overwriting it
+    const totalPoints = parseFloat((lastPostData.total_points + incomingPoints).toFixed(2)); 
+    
     let currentLevel = 0;
     for (const [lvl, data] of Object.entries(LEVEL_DATA)) {
         if (totalPoints >= data.points) currentLevel = parseInt(lvl);
@@ -100,6 +105,7 @@ async function main() {
     const res = await fetch(url, { method: lastPostData.message_id ? 'PATCH' : 'POST', body: formData });
     const data = await res.json();
     
+    // Save the combined total back down to the file
     fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({
         message_id: lastPostData.message_id || data.id,
         total_points: totalPoints
