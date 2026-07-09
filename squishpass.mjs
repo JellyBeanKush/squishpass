@@ -127,9 +127,22 @@ async function main() {
     formData.append('files[0]', new Blob([fs.readFileSync(finalImagePath)]), 'board.jpg');
     formData.append('payload_json', JSON.stringify({ content: content, attachments: [{ id: 0, filename: 'board.jpg' }] }));
 
-    const url = lastPostData.message_id 
-        ? `${process.env.DISCORD_WEBHOOK_URL}/messages/${lastPostData.message_id}?thread_id=${THREAD_ID}`
-        : `${process.env.DISCORD_WEBHOOK_URL}?thread_id=${THREAD_ID}`;
+    // --- BULLETPROOF URL ROUTING ---
+    let targetUrlStr = lastPostData.message_id 
+        ? `${process.env.DISCORD_WEBHOOK_URL}/messages/${lastPostData.message_id}`
+        : `${process.env.DISCORD_WEBHOOK_URL}`;
+
+    // Clean up any double-slashes or messed up paths caused by /messages/ strings
+    targetUrlStr = targetUrlStr.replace(/(?<!:)\/\/+/g, '/');
+
+    const finalUrl = new URL(targetUrlStr);
+    
+    // Safely append the thread ID only if it isn't already baked into the webhook secret
+    if (!finalUrl.searchParams.has('thread_id')) {
+        finalUrl.searchParams.append('thread_id', THREAD_ID);
+    }
+
+    const url = finalUrl.toString();
 
     console.log(`Sending request to URL: ${url.replace(process.env.DISCORD_WEBHOOK_URL, "WEBHOOK_SECRET")}`);
     
