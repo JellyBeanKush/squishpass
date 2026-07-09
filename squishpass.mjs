@@ -48,18 +48,18 @@ async function generateBoardImage(currentLevel) {
     // 1. PLACE YOUR 5-POINT COORDINATE DEFINITIONS HERE
     const TURN_1_POINTS = {
         p1: [2305, 385], // Start
-        p2: [2541, 403], // Ease in
-        p3: [2497, 587], // Peak/Apex
-        p4: [2541, 771], // Ease out
-        p5: [2305, 845]  // End
+        p2: [2400, 385], // Ease in
+        p3: [2500, 475], // Peak/Apex
+        p4: [2400, 565], // Ease out
+        p5: [2501, 565]  // End
     };
 
     const TURN_2_POINTS = {
-        p1: [457, 845],  // Start
-        p2: [307, 900],  // Ease in
-        p3: [253, 1073], // Peak/Apex
-        p4: [307, 1233], // Ease out
-        p5: [455, 1305]  // End
+        p1: [453, 845],  // Start
+        p2: [350, 845],  // Ease in
+        p3: [250, 1065], // Peak/Apex
+        p4: [350, 1309], // Ease out
+        p5: [453, 1309]  // End
     };
 
     // 2. BUILD THE PATH STRING USING THOSE DEFINITIONS
@@ -74,6 +74,7 @@ async function generateBoardImage(currentLevel) {
     const pathLength = 3000;
     const progressPercent = Math.min(currentLevel / 21, 1);
     const strokeDash = `${progressPercent * pathLength} ${pathLength}`;
+
     
     // ... rest of the SVG building and Sharp composite logic
     
