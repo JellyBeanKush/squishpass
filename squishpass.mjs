@@ -42,16 +42,40 @@ const LEVEL_DATA = {
 // --- IMAGE GENERATION MODULE ---
 // Handles the drawing of the progress line overlay onto the base board.
 // Uses a persistent path to ensure line continuity.
-// =============================================================================
+// --- IMAGE GENERATOR ---
 async function generateBoardImage(currentLevel) {
-    // Definitive Path definition string for the Squish Pass
-    // M = Start Point, L = Line to, Q = Quadratic Curve to (Control, End)
-    const fullPath = "M 180 385 L 2305 385 Q 2453 405, 2501 565 L 453 845 Q 249 1065, 453 1309 L 2570 1305";
+    
+    // 1. PLACE YOUR 5-POINT COORDINATE DEFINITIONS HERE
+    const TURN_1_POINTS = {
+        p1: [2305, 385], // Start
+        p2: [2541, 403], // Ease in
+        p3: [2497, 587], // Peak/Apex
+        p4: [2541, 771], // Ease out
+        p5: [2305, 845]  // End
+    };
 
-    // Configuration for the stroke styling
+    const TURN_2_POINTS = {
+        p1: [457, 845],  // Start
+        p2: [307, 900],  // Ease in
+        p3: [253, 1073], // Peak/Apex
+        p4: [307, 1233], // Ease out
+        p5: [455, 1305]  // End
+    };
+
+    // 2. BUILD THE PATH STRING USING THOSE DEFINITIONS
+    // This connects your rows and turns into one continuous, unbreakable line
+    const fullPath = `M 180 385 L ${TURN_1_POINTS.p1.join(' ')} 
+                      C ${TURN_1_POINTS.p2.join(' ')}, ${TURN_1_POINTS.p3.join(' ')}, ${TURN_1_POINTS.p4.join(' ')} ${TURN_1_POINTS.p5.join(' ')} 
+                      L 453 845 
+                      C ${TURN_2_POINTS.p2.join(' ')}, ${TURN_2_POINTS.p3.join(' ')}, ${TURN_2_POINTS.p4.join(' ')} ${TURN_2_POINTS.p5.join(' ')} 
+                      L 2570 1305`;
+
+    // 3. THE REST OF YOUR EXISTING GENERATOR LOGIC FOLLOWS BELOW...
     const pathLength = 3000;
     const progressPercent = Math.min(currentLevel / 21, 1);
     const strokeDash = `${progressPercent * pathLength} ${pathLength}`;
+    
+    // ... rest of the SVG building and Sharp composite logic
     
     // Construct the SVG Buffer using the template literal approach for readability
     const svgOverlay = Buffer.from(`
