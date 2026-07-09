@@ -124,30 +124,36 @@ async function main() {
 
     const finalImagePath = await generateBoardImage(currentLevel);
 
-    const formData = new FormData();
-    formData.append('files[0]', new Blob([fs.readFileSync(finalImagePath)]), 'board.jpg');
-    formData.append('payload_json', JSON.stringify({ content: content, attachments: [{ id: 0, filename: 'board.jpg' }] }));
-
-    // --- BULLETPROOF URL ROUTING ---
-    let targetUrlStr = lastPostData.message_id 
-        ? `${process.env.DISCORD_WEBHOOK_URL}/messages/${lastPostData.message_id}`
-        : `${process.env.DISCORD_WEBHOOK_URL}`;
-
-    // Clean up any double-slashes or messed up paths caused by /messages/ strings
-    targetUrlStr = targetUrlStr.replace(/(?<!:)\/\/+/g, '/');
-
-    const finalUrl = new URL(targetUrlStr);
+    // --- CORRECTLY ROUTE POST VS PATCH PAYLOADS ---
+    let res;
     
-    // Safely append the thread ID only if it isn't already baked into the webhook secret
-    if (!finalUrl.searchParams.has('thread_id')) {
-        finalUrl.searchParams.append('thread_id', THREAD_ID);
+    if (lastPostData.message_id) {
+        // PATCH requests ONLY accept application/json content strings
+        console.log("Sending PATCH request with text data update...");
+        res = await fetch(url, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                content: content
+            })
+        });
+    } else {
+        // POST requests accept the raw FormData file upload
+        console.log("Sending POST request with new image attachment layout...");
+        const formData = new FormData();
+        formData.append('files[0]', new Blob([fs.readFileSync(finalImagePath)]), 'board.jpg');
+        formData.append('payload_json', JSON.stringify({ 
+            content: content, 
+            attachments: [{ id: 0, filename: 'board.jpg' }] 
+        }));
+
+        res = await fetch(url, { 
+            method: 'POST', 
+            body: formData 
+        });
     }
-
-    const url = finalUrl.toString();
-
-    console.log(`Sending request to URL: ${url.replace(process.env.DISCORD_WEBHOOK_URL, "WEBHOOK_SECRET")}`);
-    
-    const res = await fetch(url, { method: lastPostData.message_id ? 'PATCH' : 'POST', body: formData });
     
     console.log(`Discord Response Status: ${res.status} ${res.statusText}`);
     
@@ -155,11 +161,12 @@ async function main() {
     console.log(`Raw Discord Response: ${responseText}`);
 
     let data;
-    try {
-        data = JSON.parse(responseText);
-    } catch (e) {
-        console.error("Failed to parse Discord response as JSON.");
-        return;
+    if (responseText) {
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            console.error("Failed to parse Discord response as JSON.");
+        }
     }
 
     if (!res.ok) {
@@ -167,8 +174,9 @@ async function main() {
         return;
     }
     
+    // Lock down the data safely
     fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({
-        message_id: lastPostData.message_id || data.id,
+        message_id: lastPostData.message_id || (data ? data.id : null),
         total_points: totalPoints,
         current_level: currentLevel,
         points_needed: pointsNeeded,
