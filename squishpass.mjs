@@ -55,9 +55,9 @@ async function generateBoardImage(currentLevel) {
     }
 
     // --- CURVE 1 (Row 1 to Row 2 connection at the right edge) ---
-    // 🛠️ Control points targeted directly at corner tile centers to guide the sweep cleanly inside the tracks
+    // 🛠️ Control points extend past endX horizontally to create a perfectly rounded outer loop
     if (currentLevel < 8) {
-        svgParts.push(`<path d="M ${endX} ${rowY[1]} C ${endX} ${rowY[1]}, ${endX} ${rowY[2]}, ${endX} ${rowY[2]}" />`);
+        svgParts.push(`<path d="M ${endX} ${rowY[1]} C ${endX + 250} ${rowY[1]}, ${endX + 250} ${rowY[2]}, ${endX} ${rowY[2]}" />`);
     }
 
     // --- ROW 2 (Levels 8-14, Right to Left) ---
@@ -67,9 +67,9 @@ async function generateBoardImage(currentLevel) {
     }
 
     // --- CURVE 2 (Row 2 to Row 3 connection at the left edge) ---
-    // 🛠️ Control points targeted directly at corner tile centers to drop cleanly through the inner bounds
+    // 🛠️ Control points extend past startX horizontally to swing out smoothly around the left turn
     if (currentLevel < 15) {
-        svgParts.push(`<path d="M ${startX} ${rowY[2]} C ${startX} ${rowY[2]}, ${startX} ${rowY[3]}, ${startX} ${rowY[3]}" />`);
+        svgParts.push(`<path d="M ${startX} ${rowY[2]} C ${startX - 250} ${rowY[2]}, ${startX - 250} ${rowY[3]}, ${startX} ${rowY[3]}" />`);
     }
 
     // --- ROW 3 (Levels 15-21, Left to Right) ---
