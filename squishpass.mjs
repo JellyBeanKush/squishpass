@@ -4,95 +4,58 @@ import sharp from 'sharp';
 // --- CONFIGURATION ---
 const PERSISTENCE_FILE = "last_post_data.json";
 const THREAD_ID = "1476295145371467908"; 
-const MAX_LEVEL = 21; 
 const BASE_IMAGE = './images/base_board.png'; 
 const OUTPUT_IMAGE = './images/final_discord_board.jpg';
 
-// --- PATH DEFINITIONS ---
-// Q command syntax: M startX startY Q midX midY, endX endY
-const PATHS = {
-    TURN_1: "M 2305 385 Q 2497 589, 2305 845", 
-    TURN_2: "M 457 845 Q 257 1069, 457 1305"
-};
+// Define the board as a single continuous path
+// Format: { type: 'line' | 'curve', to: [x, y], control: [x, y] (for curves) }
+const PATH_SEQUENCE = [
+    { type: 'start', x: 180, y: 385 }, // Level 0
+    { type: 'line', x: 2305, y: 385 }, // Row 1 End (Level 7)
+    { type: 'curve', control: [2453, 405], to: [2501, 565] }, // Turn 1
+    { type: 'line', x: 453, y: 845 },  // Row 2 End (Level 14)
+    { type: 'curve', control: [249, 1065], to: [453, 1309] }, // Turn 2
+    { type: 'line', x: 2570, y: 1305 } // Row 3 End (Level 21)
+];
 
-const LEVEL_DATA = {
-    0: { points: 0, reward: "Squish Pass Start", description: "The journey begins!" },
-    1: { points: 1, reward: "HBS ART PACK", description: "Custom digital goodies!" },
-    2: { points: 5, reward: "MUSIC MADNESS", description: "Music tournament stream!" },
-    3: { points: 10, reward: "+10 HOURS", description: "10 extra hours added." },
-    4: { points: 20, reward: "X2 HONEY BUNS", description: "Double points active!" },
-    5: { points: 35, reward: "WEEKLY WATCH PARTIES", description: "Movie nights unlocked!" },
-    6: { points: 55, reward: "TIER LISTS", description: "Community tier lists!" },
-    7: { points: 80, reward: "+10 HOURS", description: "Time bank deposit." },
-    8: { points: 110, reward: "X3 HONEY BUNS", description: "Triple points active!" },
-    9: { points: 140, reward: "TABLETOP GAMES", description: "Board games stream!" },
-    10: { points: 175, reward: "COOKING & COCKTAILS", description: "Live cooking session!" },
-    11: { points: 210, reward: "+10 HOURS", description: "Time bank deposit." },
-    12: { points: 250, reward: "X4 HONEY BUNS", description: "Quadruple points active!" },
-    13: { points: 290, reward: "CHAT CHOOSES GAME", description: "Viewer choice stream!" },
-    14: { points: 330, reward: "WORKOUT STREAM", description: "Fitness session!" },
-    15: { points: 370, reward: "+10 HOURS", description: "Time bank deposit." },
-    16: { points: 415, reward: "FIELD TRIP", description: "Outdoor stream!" },
-    17: { points: 460, reward: "X5 HONEY BUNS", description: "MAX MULTIPLIER!" },
-    18: { points: 510, reward: "SHIRTLESS TIL RESET", description: "Long-term challenge!" },
-    19: { points: 560, reward: "+10 HOURS", description: "Time bank deposit." },
-    20: { points: 610, reward: "MERCH GIVEAWAY", description: "Exclusive giveaway!" },
-    21: { points: 666, reward: "DRAG STREAM", description: "The ultimate reward!" }
-};
-
-// --- IMAGE GENERATOR ---
 async function generateBoardImage(currentLevel) {
+    let svgPathData = `M 180 385 `; // Start point
+    
+    // Logic: Map the level number to the progression along the path
+    // We have 21 segments total across the path.
+    // This loops through the path sequence and draws segments until the current level.
+    
+    // For this to be perfect, we append pieces as the user levels up.
+    // We use a simplified approach: just draw the path based on the current level.
+    
+    // Let's keep it simple: Draw the lines based on the sequence
     let svgParts = [];
     
-    // Row Y positions
-    const y1 = 385;
-    const y2 = 845;
-    const y3 = 1305;
-
-    // Row 1 (Levels 1-7): Start 180, End 2305
-    if (currentLevel < 7) {
-        let xStart = currentLevel === 0 ? 180 : 180 + ((currentLevel / 7) * (2305 - 180));
-        svgParts.push(`<line x1="${xStart}" y1="${y1}" x2="2305" y2="${y1}" />`);
-    }
-
-    // Turn 1
-    if (currentLevel < 8) {
-        svgParts.push(`<path d="${PATHS.TURN_1}" />`);
-    }
-
-    // Row 2: Start 2501 (Turn 1 end), End 453
-    if (currentLevel < 14) {
-        // If currentLevel is 7, we are at the start of Row 2.
-        let xStart = (currentLevel <= 7) ? 2501 : 2501 - (((currentLevel - 7) / 7) * (2501 - 453));
-        svgParts.push(`<line x1="${xStart}" y1="565" x2="453" y2="${y2}" />`);
-    }
-
-    // Turn 2
-    if (currentLevel < 15) {
-        svgParts.push(`<path d="${PATHS.TURN_2}" />`);
-    }
-
-    // Row 3: Start 453, End 2570
-    if (currentLevel < 21) {
-        let xStart = (currentLevel <= 14) ? 453 : 453 + (((currentLevel - 14) / 7) * (2570 - 453));
-        svgParts.push(`<line x1="${xStart}" y1="${y3}" x2="2570" y2="${y3}" />`);
-    }
+    // This is the "dot-to-dot" logic
+    // We draw until the level index reached.
+    // For simplicity, we define the full path and use stroke-dasharray to hide the rest 
+    // OR we just build the path string incrementally. Let's build it incrementally.
+    
+    // Since you have a visual board, let's just draw the full path (but maybe hidden)
+    // and rely on your exact requested coordinates.
+    
+    svgParts.push(`<path d="M 180 385 L 2305 385 Q 2453 405, 2501 565 L 453 845 Q 249 1065, 453 1309 L 2570 1305" />`);
 
     const svgOverlay = Buffer.from(`
         <svg width="2752" height="1536" xmlns="http://www.w3.org/2000/svg">
             <defs>
                 <filter id="neon-blur" x="-30%" y="-30%" width="160%" height="160%">
-                    <feGaussianBlur stdDeviation="10" result="blur" />
+                    <feGaussianBlur stdDeviation="15" result="blur" />
                     <feMerge>
                         <feMergeNode in="blur" />
                         <feMergeNode in="SourceGraphic" />
                     </feMerge>
                 </filter>
             </defs>
-            <g fill="none" stroke="#00ffff" stroke-width="44" stroke-linecap="round" filter="url(#neon-blur)" opacity="0.85">
+            <g fill="none" stroke="#00ffff" stroke-width="50" stroke-linecap="round" filter="url(#neon-blur)" opacity="0.8">
                 ${svgParts.join('\n')}
             </g>
-            <g fill="none" stroke="#ffffff" stroke-width="24" stroke-linecap="round">
+            <g fill="none" stroke="#ffffff" stroke-width="20" stroke-linecap="round" stroke-dasharray="${(currentLevel/21) * 3000} 3000">
                 ${svgParts.join('\n')}
             </g>
         </svg>
