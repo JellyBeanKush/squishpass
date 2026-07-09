@@ -138,28 +138,24 @@ async function main() {
     finalUrl.searchParams.set('thread_id', THREAD_ID);
     const url = finalUrl.toString();
 
+    // --- PREPARE MULTIPART FORM DATA PAYLOAD ---
+    const formData = new FormData();
+    formData.append('files[0]', new Blob([fs.readFileSync(finalImagePath)]), 'board.jpg');
+    formData.append('payload_json', JSON.stringify({ 
+        content: content, 
+        attachments: [{ id: 0, filename: 'board.jpg' }] 
+    }));
+
     // --- CORRECTLY ROUTE POST VS PATCH PAYLOADS ---
     let res;
     if (lastPostData.message_id) {
-        console.log("Sending PATCH request with text data update...");
+        console.log("Sending PATCH request with text and updated tracking image...");
         res = await fetch(url, {
             method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                content: content
-            })
+            body: formData
         });
     } else {
         console.log("Sending POST request with new image attachment layout...");
-        const formData = new FormData();
-        formData.append('files[0]', new Blob([fs.readFileSync(finalImagePath)]), 'board.jpg');
-        formData.append('payload_json', JSON.stringify({ 
-            content: content, 
-            attachments: [{ id: 0, filename: 'board.jpg' }] 
-        }));
-
         res = await fetch(url, { 
             method: 'POST', 
             body: formData 
