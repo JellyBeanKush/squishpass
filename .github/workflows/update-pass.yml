@@ -41,12 +41,12 @@ jobs:
           # 4. Run the script
           node squishpass.mjs
 
-      - name: Push New ID and Points
+      - name: Push New ID, Points, and Board Image
         run: |
-          # Commit because BOTH message_id OR total_points will have changed
-          git add last_post_data.json
+          # Commit because message_id, total_points, OR the board image will have changed
+          git add last_post_data.json images/final_discord_board.jpg
           if ! git diff --cached --quiet; then
-            git commit -m "Update persistence score data [skip ci]"
+            git commit -m "Update persistence score data and board image [skip ci]"
             git pull --rebase origin main
             git push origin main
           else
