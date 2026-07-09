@@ -105,11 +105,16 @@ async function main() {
     const res = await fetch(url, { method: lastPostData.message_id ? 'PATCH' : 'POST', body: formData });
     const data = await res.json();
     
-    // Save the combined total back down to the file
-    fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({
-        message_id: lastPostData.message_id || data.id,
-        total_points: totalPoints
-    }, null, 2));
+   // Save ALL calculated data back down to the file so Mix It Up can read it
+fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({
+    message_id: lastPostData.message_id || data.id,
+    total_points: totalPoints,
+    current_level: currentLevel,
+    points_needed: pointsNeeded,
+    next_reward: LEVEL_DATA[nextLvl].reward,
+    image_name: "board.jpg",
+    last_update: new Date().toISOString()
+}, null, 2));
 }
 
 main();
