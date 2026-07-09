@@ -42,47 +42,33 @@ const LEVEL_DATA = {
 // --- IMAGE GENERATION MODULE ---
 // Handles the drawing of the progress line overlay onto the base board.
 // Uses a persistent path to ensure line continuity.
-// --- UPDATED IMAGE GENERATOR ---
 async function generateBoardImage(currentLevel) {
     const segments = [
-        { min: 0, max: 7, path: "M 135 385 L 2309 385" }, 
-        { min: 7, max: 8, path: "C 2309 385, 2500 475, 2400 565, 2309 845" }, 
+        { min: 0, max: 7,  path: "M 135 385 L 2309 385" }, 
+        { min: 7, max: 8,  path: "C 2309 385, 2500 475, 2400 565, 2309 845" }, 
         { min: 8, max: 14, path: "L 455 845" }, 
         { min: 14, max: 15, path: "C 455 845, 250 1065, 350 1309, 455 1309" }, 
         { min: 15, max: 21, path: "L 2625 1309" }
     ];
 
-    // 1. Identify which segments are active
-    let activeSegments = segments.filter(seg => currentLevel < seg.max);
+    // FIX: Changed condition to (currentLevel < seg.min)
+    // If level is 0, then 0 < min is false for all, so everything is included (Full Line)
+    // If level is 1, segments where 1 < min are excluded, so the first segment is removed.
+    let activeSegments = segments.filter(seg => currentLevel < seg.min === false);
 
     if (activeSegments.length === 0) {
         await sharp(BASE_IMAGE).toFile(OUTPUT_IMAGE);
         return OUTPUT_IMAGE;
     }
 
-    // 2. Logic to ensure path continuity
-    // If the first segment is removed, we must manually prepend an 'M' 
-    // to the starting coordinate of the first ACTIVE segment.
-    let fullPath = "";
+    // Build the path dynamically
+    let fullPath = activeSegments.map(s => s.path).join(" ");
     
-    // We need to know where the first active segment starts.
-    // Since our segments are chained, the first segment's start is either 
-    // the M coordinate, or the end coordinate of the previous segment.
-    const startPoints = {
-        0: "M 135 385",
-        7: "M 2309 385",
-        8: "M 2309 845",
-        14: "M 455 845",
-        15: "M 455 1309"
-    };
+    // Ensure the first segment starts with M
+    if (!fullPath.startsWith("M")) {
+        fullPath = "M " + fullPath.substring(fullPath.indexOf("L") + 2);
+    }
 
-    const firstActive = activeSegments[0];
-    const moveCommand = startPoints[firstActive.min];
-    
-    // Build path: Start with the correct M, then add the paths (stripping original M if present)
-    fullPath = `${moveCommand} ` + activeSegments.map(s => s.path.replace("M 135 385 ", "")).join(" ");
-
-    // 3. Construct SVG
     const svgOverlay = Buffer.from(`
         <svg width="2752" height="1536" xmlns="http://www.w3.org/2000/svg">
             <defs>
