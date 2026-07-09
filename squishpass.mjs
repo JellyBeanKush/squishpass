@@ -8,7 +8,6 @@ const PERSISTENCE_FILE = "last_post_data.json";
 const THREAD_ID = "1476295145371467908"; 
 const BASE_IMAGE = './images/base_board.png'; 
 const OUTPUT_IMAGE = './images/final_discord_board.jpg';
-const fs = require('fs'); // Make sure this is at the top of your file
 
 // =============================================================================
 // --- LEVEL DATA DEFINITION ---
