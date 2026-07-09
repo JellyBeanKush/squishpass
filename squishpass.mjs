@@ -1,46 +1,59 @@
 import fs from 'fs';
 import sharp from 'sharp';
 
-// --- CONFIGURATION ---
+// =============================================================================
+// --- CONFIGURATION AND ENVIRONMENT SETTINGS ---
+// =============================================================================
 const PERSISTENCE_FILE = "last_post_data.json";
 const THREAD_ID = "1476295145371467908"; 
 const BASE_IMAGE = './images/base_board.png'; 
 const OUTPUT_IMAGE = './images/final_discord_board.jpg';
 
-// Define the board as a single continuous path
-// Format: { type: 'line' | 'curve', to: [x, y], control: [x, y] (for curves) }
-const PATH_SEQUENCE = [
-    { type: 'start', x: 180, y: 385 }, // Level 0
-    { type: 'line', x: 2305, y: 385 }, // Row 1 End (Level 7)
-    { type: 'curve', control: [2453, 405], to: [2501, 565] }, // Turn 1
-    { type: 'line', x: 453, y: 845 },  // Row 2 End (Level 14)
-    { type: 'curve', control: [249, 1065], to: [453, 1309] }, // Turn 2
-    { type: 'line', x: 2570, y: 1305 } // Row 3 End (Level 21)
-];
+// =============================================================================
+// --- LEVEL DATA DEFINITION ---
+// Providing full descriptive data for each level on the board.
+// =============================================================================
+const LEVEL_DATA = {
+    0: { points: 0, reward: "Squish Pass Start", description: "The journey begins!" },
+    1: { points: 1, reward: "HBS ART PACK", description: "Custom digital goodies!" },
+    2: { points: 5, reward: "MUSIC MADNESS", description: "Music tournament stream!" },
+    3: { points: 10, reward: "+10 HOURS", description: "10 extra hours added." },
+    4: { points: 20, reward: "X2 HONEY BUNS", description: "Double points active!" },
+    5: { points: 35, reward: "WEEKLY WATCH PARTIES", description: "Movie nights unlocked!" },
+    6: { points: 55, reward: "TIER LISTS", description: "Community tier lists!" },
+    7: { points: 80, reward: "+10 HOURS", description: "Time bank deposit." },
+    8: { points: 110, reward: "X3 HONEY BUNS", description: "Triple points active!" },
+    9: { points: 140, reward: "TABLETOP GAMES", description: "Board games stream!" },
+    10: { points: 175, reward: "COOKING & COCKTAILS", description: "Live cooking session!" },
+    11: { points: 210, reward: "+10 HOURS", description: "Time bank deposit." },
+    12: { points: 250, reward: "X4 HONEY BUNS", description: "Quadruple points active!" },
+    13: { points: 290, reward: "CHAT CHOOSES GAME", description: "Viewer choice stream!" },
+    14: { points: 330, reward: "WORKOUT STREAM", description: "Fitness session!" },
+    15: { points: 370, reward: "+10 HOURS", description: "Time bank deposit." },
+    16: { points: 415, reward: "FIELD TRIP", description: "Outdoor stream!" },
+    17: { points: 460, reward: "X5 HONEY BUNS", description: "MAX MULTIPLIER!" },
+    18: { points: 510, reward: "SHIRTLESS TIL RESET", description: "Long-term challenge!" },
+    19: { points: 560, reward: "+10 HOURS", description: "Time bank deposit." },
+    20: { points: 610, reward: "MERCH GIVEAWAY", description: "Exclusive giveaway!" },
+    21: { points: 666, reward: "DRAG STREAM", description: "The ultimate reward!" }
+};
 
+// =============================================================================
+// --- IMAGE GENERATION MODULE ---
+// Handles the drawing of the progress line overlay onto the base board.
+// Uses a persistent path to ensure line continuity.
+// =============================================================================
 async function generateBoardImage(currentLevel) {
-    let svgPathData = `M 180 385 `; // Start point
-    
-    // Logic: Map the level number to the progression along the path
-    // We have 21 segments total across the path.
-    // This loops through the path sequence and draws segments until the current level.
-    
-    // For this to be perfect, we append pieces as the user levels up.
-    // We use a simplified approach: just draw the path based on the current level.
-    
-    // Let's keep it simple: Draw the lines based on the sequence
-    let svgParts = [];
-    
-    // This is the "dot-to-dot" logic
-    // We draw until the level index reached.
-    // For simplicity, we define the full path and use stroke-dasharray to hide the rest 
-    // OR we just build the path string incrementally. Let's build it incrementally.
-    
-    // Since you have a visual board, let's just draw the full path (but maybe hidden)
-    // and rely on your exact requested coordinates.
-    
-    svgParts.push(`<path d="M 180 385 L 2305 385 Q 2453 405, 2501 565 L 453 845 Q 249 1065, 453 1309 L 2570 1305" />`);
+    // Definitive Path definition string for the Squish Pass
+    // M = Start Point, L = Line to, Q = Quadratic Curve to (Control, End)
+    const fullPath = "M 180 385 L 2305 385 Q 2453 405, 2501 565 L 453 845 Q 249 1065, 453 1309 L 2570 1305";
 
+    // Configuration for the stroke styling
+    const pathLength = 3000;
+    const progressPercent = Math.min(currentLevel / 21, 1);
+    const strokeDash = `${progressPercent * pathLength} ${pathLength}`;
+    
+    // Construct the SVG Buffer using the template literal approach for readability
     const svgOverlay = Buffer.from(`
         <svg width="2752" height="1536" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -52,61 +65,99 @@ async function generateBoardImage(currentLevel) {
                     </feMerge>
                 </filter>
             </defs>
-            <g fill="none" stroke="#00ffff" stroke-width="50" stroke-linecap="round" filter="url(#neon-blur)" opacity="0.8">
-                ${svgParts.join('\n')}
-            </g>
-            <g fill="none" stroke="#ffffff" stroke-width="20" stroke-linecap="round" stroke-dasharray="${(currentLevel/21) * 3000} 3000">
-                ${svgParts.join('\n')}
-            </g>
+            <path d="${fullPath}" fill="none" stroke="#00ffff" stroke-width="50" stroke-linecap="round" filter="url(#neon-blur)" opacity="0.8" />
+            <path d="${fullPath}" fill="none" stroke="#ffffff" stroke-width="20" stroke-linecap="round" stroke-dasharray="${strokeDash}" />
         </svg>
     `);
 
-    await sharp(BASE_IMAGE)
-        .composite([{ input: svgOverlay, top: 0, left: 0 }])
-        .toFile(OUTPUT_IMAGE);
+    // Use Sharp to process the image and composite the SVG overlay onto the board
+    try {
+        await sharp(BASE_IMAGE)
+            .composite([{ input: svgOverlay, top: 0, left: 0 }])
+            .toFile(OUTPUT_IMAGE);
+    } catch (err) {
+        console.error("Error during image generation process:", err);
+        throw err;
+    }
 
     return OUTPUT_IMAGE;
 }
 
-// --- MAIN LOGIC ---
-async function main() {
-    const incomingPoints = parseFloat(process.env.POINTS || 0);
-    let lastPostData = { message_id: null, total_points: 0 };
-    
+// =============================================================================
+// --- DATA PERSISTENCE HELPERS ---
+// Handles reading and writing the state of the stream's progress.
+// =============================================================================
+function loadLastPostData() {
     if (fs.existsSync(PERSISTENCE_FILE)) {
         try {
-            lastPostData = JSON.parse(fs.readFileSync(PERSISTENCE_FILE, 'utf8'));
-        } catch (e) {
-            console.error("Failed to read persistence file, resetting state.", e);
+            const data = fs.readFileSync(PERSISTENCE_FILE, 'utf8');
+            return JSON.parse(data);
+        } catch (error) {
+            console.error("Critical error reading persistence file. Resetting progress.", error);
+        }
+    }
+    return { message_id: null, total_points: 0 };
+}
+
+function saveCurrentState(data) {
+    try {
+        fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify(data, null, 2));
+    } catch (error) {
+        console.error("Error writing persistent state to disk:", error);
+    }
+}
+
+// =============================================================================
+// --- MAIN ORCHESTRATION ---
+// Coordinates the data calculation, image processing, and API transmission.
+// =============================================================================
+async function main() {
+    console.log("Starting SquishPass update process...");
+
+    // 1. Calculate incoming progress
+    const incomingPoints = parseFloat(process.env.POINTS || 0);
+    const lastPostData = loadLastPostData();
+    const totalPoints = parseFloat((lastPostData.total_points + incomingPoints).toFixed(2)); 
+
+    // 2. Determine current level based on total points
+    let currentLevel = 0;
+    for (const [lvl, data] of Object.entries(LEVEL_DATA)) {
+        if (totalPoints >= data.points) {
+            currentLevel = parseInt(lvl);
         }
     }
 
-    const totalPoints = parseFloat((lastPostData.total_points + incomingPoints).toFixed(2)); 
-    let currentLevel = 0;
-    for (const [lvl, data] of Object.entries(LEVEL_DATA)) {
-        if (totalPoints >= data.points) currentLevel = parseInt(lvl);
-    }
-
-    const nextLvl = Math.min(currentLevel + 1, MAX_LEVEL);
+    // 3. Prepare milestone information for Discord notification
+    const nextLvl = Math.min(currentLevel + 1, 21);
     const pointsNeeded = parseFloat(Math.max(0, LEVEL_DATA[nextLvl].points - totalPoints).toFixed(2));
     
-    let fullUnlockedList = Object.entries(LEVEL_DATA)
+    const fullUnlockedList = Object.entries(LEVEL_DATA)
         .filter(([lvl]) => lvl > 0 && lvl <= currentLevel)
         .map(([lvl, data]) => `✅ Level ${lvl}: **${data.reward}**`)
         .join("\n") || "None yet!";
     
-    let content = `⭐ **SQUISH PASS UPDATE!**\n**Total Points:** ${totalPoints} | **Current Level:** ${currentLevel}\n\n` +
-                  `**Rewards Unlocked:**\n${fullUnlockedList}\n\n` +
-                  `🎯 **Next Milestone:** ${pointsNeeded} points to unlock **${LEVEL_DATA[nextLvl].reward}**\n` +
-                  `💖 **Support the stream to unlock the next milestone!**`;
+    const content = `⭐ **SQUISH PASS UPDATE!**\n` +
+                    `**Total Points:** ${totalPoints} | **Current Level:** ${currentLevel}\n\n` +
+                    `**Rewards Unlocked:**\n${fullUnlockedList}\n\n` +
+                    `🎯 **Next Milestone:** ${pointsNeeded} points to unlock **${LEVEL_DATA[nextLvl].reward}**\n` +
+                    `💖 **Support the stream to unlock the next milestone!**`;
 
+    // 4. Generate the visual representation of the progress
     const finalImagePath = await generateBoardImage(currentLevel);
 
-    const parsedSecret = new URL(process.env.DISCORD_WEBHOOK_URL.trim());
+    // 5. Discord Webhook Transmission Logic
+    const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+    if (!webhookUrl) {
+        console.error("Webhook URL is missing in environment variables.");
+        return;
+    }
+
+    const parsedSecret = new URL(webhookUrl.trim());
     const pathParts = parsedSecret.pathname.split('/').filter(Boolean);
-    const baseWebhookEndpoint = `${parsedSecret.origin}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}`;
+    const baseEndpoint = `${parsedSecret.origin}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}`;
     
-    let finalUrl = lastPostData.message_id ? new URL(`${baseWebhookEndpoint}/messages/${lastPostData.message_id}`) : new URL(baseWebhookEndpoint);
+    let targetUrl = lastPostData.message_id ? `${baseEndpoint}/messages/${lastPostData.message_id}` : baseEndpoint;
+    const finalUrl = new URL(targetUrl);
     finalUrl.searchParams.set('thread_id', THREAD_ID);
     
     const formData = new FormData();
@@ -116,25 +167,44 @@ async function main() {
         attachments: [{ id: 0, filename: 'board.jpg' }] 
     }));
 
-    const res = await fetch(finalUrl.toString(), { 
-        method: lastPostData.message_id ? 'PATCH' : 'POST', 
-        body: formData 
-    });
-    
-    const responseText = await res.text();
-    if (!res.ok) {
-        console.error(`Discord API Error! Status: ${res.status}.`);
-        return;
+    // 6. Execute transmission
+    try {
+        const response = await fetch(finalUrl.toString(), { 
+            method: lastPostData.message_id ? 'PATCH' : 'POST', 
+            body: formData 
+        });
+
+        const responseText = await response.text();
+        
+        if (response.ok) {
+            const data = JSON.parse(responseText);
+            saveCurrentState({
+                message_id: lastPostData.message_id || data.id,
+                total_points: totalPoints,
+                current_level: currentLevel,
+                last_update: new Date().toISOString()
+            });
+            console.log("Successfully synched to Discord.");
+        } else {
+            console.error("Discord API returned error:", responseText);
+        }
+    } catch (err) {
+        console.error("Failed to complete Discord transmission:", err);
     }
-    
-    fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify({
-        message_id: lastPostData.message_id || (responseText ? JSON.parse(responseText).id : null),
-        total_points: totalPoints,
-        current_level: currentLevel,
-        last_update: new Date().toISOString()
-    }, null, 2));
-    
-    console.log("State synchronized!");
 }
 
-main();
+// Execution trigger
+main().catch(err => {
+    console.error("Fatal error in main script:", err);
+    process.exit(1);
+});
+
+/*
+    =========================================================================
+    --- DOCUMENTATION AND FOOTER ---
+    This script is designed to run automatically when the stream points
+    receive an update. It maps user progress to the board path defined in
+    the generateBoardImage function using precise quadratic curves to ensure
+    smooth alignment across rows.
+    =========================================================================
+*/
