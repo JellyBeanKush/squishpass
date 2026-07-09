@@ -8,6 +8,7 @@ const PERSISTENCE_FILE = "last_post_data.json";
 const THREAD_ID = "1476295145371467908"; 
 const BASE_IMAGE = './images/base_board.png'; 
 const OUTPUT_IMAGE = './images/final_discord_board.jpg';
+const fs = require('fs'); // Make sure this is at the top of your file
 
 // =============================================================================
 // --- LEVEL DATA DEFINITION ---
@@ -41,14 +42,19 @@ const LEVEL_DATA = {
 // =============================================================================
 // --- UPDATED IMAGE GENERATOR ---
 async function generateBoardImage(currentLevel) {
-    // 1. Determine the filename
-    // We cap the level at 21 to match your SPO 21.png
     const level = Math.min(Math.max(currentLevel, 0), 21);
     const overlayPath = `./squishpass/images/SPO ${level}.png`;
 
+    console.log("Attempting to overlay:", overlayPath);
+
+    // Check if file actually exists
+    if (!fs.existsSync(overlayPath)) {
+        console.error("CRITICAL: File not found at path:", overlayPath);
+        await sharp(BASE_IMAGE).toFile(OUTPUT_IMAGE);
+        return OUTPUT_IMAGE;
+    }
+
     try {
-        // 2. Composite the specific overlay onto the base board
-        // Using 'blend' ensures the glow effect from your PNG looks natural
         await sharp(BASE_IMAGE)
             .composite([{ 
                 input: overlayPath, 
@@ -57,9 +63,10 @@ async function generateBoardImage(currentLevel) {
                 blend: 'over' 
             }])
             .toFile(OUTPUT_IMAGE);
+        
+        console.log("Successfully created board with overlay:", overlayPath);
     } catch (err) {
-        console.error(`Error: Could not find overlay file: ${overlayPath}`, err);
-        // Fallback: just return the base board if something goes wrong
+        console.error("Sharp composite error:", err);
         await sharp(BASE_IMAGE).toFile(OUTPUT_IMAGE);
     }
 
