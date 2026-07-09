@@ -39,47 +39,29 @@ const LEVEL_DATA = {
 };
 
 // =============================================================================
-// --- IMAGE GENERATION MODULE ---
-// Handles the drawing of the progress line overlay onto the base board.
-// Uses a persistent path to ensure line continuity.
+// --- UPDATED IMAGE GENERATOR ---
 async function generateBoardImage(currentLevel) {
-    // 1. A single, rock-solid path string.
-    // Adjusted coordinates to hit center of tiles:
-    // Row 1 (1-7): starts at 135, ends at 2309
-    // Turn 1 (7-8): curves from right end down
-    // Row 2 (8-14): travels leftwards to 455
-    // Turn 2 (14-15): loops left
-    // Row 3 (15-21): travels right
-    const fullPath = "M 135 385 L 2309 385 C 2309 385, 2500 475, 2400 565, 2309 845 L 455 845 C 455 845, 250 1065, 350 1309, 455 1309 L 2625 1309";
+    // 1. Determine the filename
+    // We cap the level at 21 to match your SPO 21.png
+    const level = Math.min(Math.max(currentLevel, 0), 21);
+    const overlayPath = `./squishpass/images/SPO ${level}.png`;
 
-    // 2. We use a mask approach to hide finished levels.
-    // Because your board is complex, we use a 'stroke-dasharray' offset to hide the line.
-    // We calculate how much of the path to 'remove' based on currentLevel.
-    const pathLength = 6500; // Total approximate length of your path
-    const levelProgress = Math.min(currentLevel / 21, 1);
-    const dashOffset = levelProgress * pathLength;
-
-    const svgOverlay = Buffer.from(`
-        <svg width="2752" height="1536" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <filter id="neon-blur" x="-30%" y="-30%" width="160%" height="160%">
-                    <feGaussianBlur stdDeviation="15" result="blur" />
-                    <feMerge>
-                        <feMergeNode in="blur" />
-                        <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                </filter>
-            </defs>
-            <path d="${fullPath}" fill="none" stroke="#00ffff" stroke-width="50" stroke-linecap="round" filter="url(#neon-blur)" opacity="0.8" 
-                  stroke-dasharray="${pathLength}" stroke-dashoffset="${dashOffset}" />
-            <path d="${fullPath}" fill="none" stroke="#ffffff" stroke-width="20" stroke-linecap="round" 
-                  stroke-dasharray="${pathLength}" stroke-dashoffset="${dashOffset}" />
-        </svg>
-    `);
-
-    await sharp(BASE_IMAGE)
-        .composite([{ input: svgOverlay, top: 0, left: 0 }])
-        .toFile(OUTPUT_IMAGE);
+    try {
+        // 2. Composite the specific overlay onto the base board
+        // Using 'blend' ensures the glow effect from your PNG looks natural
+        await sharp(BASE_IMAGE)
+            .composite([{ 
+                input: overlayPath, 
+                top: 0, 
+                left: 0,
+                blend: 'over' 
+            }])
+            .toFile(OUTPUT_IMAGE);
+    } catch (err) {
+        console.error(`Error: Could not find overlay file: ${overlayPath}`, err);
+        // Fallback: just return the base board if something goes wrong
+        await sharp(BASE_IMAGE).toFile(OUTPUT_IMAGE);
+    }
 
     return OUTPUT_IMAGE;
 }
