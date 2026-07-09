@@ -127,11 +127,11 @@ async function main() {
     formData.append('files[0]', new Blob([fs.readFileSync(finalImagePath)]), 'board.jpg');
     formData.append('payload_json', JSON.stringify({ content: content, attachments: [{ id: 0, filename: 'board.jpg' }] }));
 
-    // Ensure the message ID goes into the URL path, and the thread_id goes into the query parameter
+    // Formatted specifically for a channel webhook routing into a thread
     const url = lastPostData.message_id 
         ? `${process.env.DISCORD_WEBHOOK_URL}/messages/${lastPostData.message_id}?thread_id=${THREAD_ID}`
         : `${process.env.DISCORD_WEBHOOK_URL}?thread_id=${THREAD_ID}`;
-
+    
     const res = await fetch(url, { method: lastPostData.message_id ? 'PATCH' : 'POST', body: formData });
     const data = await res.json();
     
