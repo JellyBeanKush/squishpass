@@ -35,7 +35,7 @@ const LEVEL_DATA = {
 
 // --- AUTOMATED STRIKE-THROUGH (LOCKED) TRACKER GENERATOR ---
 async function generateBoardImage(currentLevel) {
-    // 🎯 Set to your exact row center coordinates
+    // 🎯 Pinpoint vertical centers of the text tracks
     const rowY = {
         1: 385, 
         2: 845, 
@@ -48,41 +48,60 @@ async function generateBoardImage(currentLevel) {
 
     let svgParts = [];
     
-    // 🎨 Line Style Configuration
-    const lineColor = "#ff3333"; // Crimson Red for the "crossed-out" look
-    const lineWidth = "16";       // Thickness of the strike-through line
-
     // --- ROW 1 (Levels 1-7, Left to Right) ---
     if (currentLevel < 7) {
         let r1Start = currentLevel === 0 ? startX : startX + ((currentLevel / 7) * totalRowWidth);
-        svgParts.push(`<line x1="${r1Start}" y1="${rowY[1]}" x2="${endX}" y2="${rowY[1]}" stroke="${lineColor}" stroke-width="${lineWidth}" stroke-linecap="round" />`);
+        svgParts.push(`<line x1="${r1Start}" y1="${rowY[1]}" x2="${endX}" y2="${rowY[1]}" />`);
     }
 
     // --- CURVE 1 (Row 1 to Row 2 connection at the right edge) ---
+    // 🛠️ Tighter control points (+100 instead of +200) keep the loop inside the track graphics perfectly
     if (currentLevel < 8) {
-        svgParts.push(`<path d="M ${endX} ${rowY[1]} C ${endX + 200} ${rowY[1]}, ${endX + 200} ${rowY[2]}, ${endX} ${rowY[2]}" fill="none" stroke="${lineColor}" stroke-width="${lineWidth}" />`);
+        svgParts.push(`<path d="M ${endX} ${rowY[1]} C ${endX + 100} ${rowY[1]}, ${endX + 100} ${rowY[2]}, ${endX} ${rowY[2]}" />`);
     }
 
     // --- ROW 2 (Levels 8-14, Right to Left) ---
     if (currentLevel < 14) {
         let r2Start = currentLevel <= 7 ? endX : endX - (((currentLevel - 7) / 7) * totalRowWidth);
-        svgParts.push(`<line x1="${r2Start}" y1="${rowY[2]}" x2="${startX}" y2="${rowY[2]}" stroke="${lineColor}" stroke-width="${lineWidth}" stroke-linecap="round" />`);
+        svgParts.push(`<line x1="${r2Start}" y1="${rowY[2]}" x2="${startX}" y2="${rowY[2]}" />`);
     }
 
     // --- CURVE 2 (Row 2 to Row 3 connection at the left edge) ---
+    // 🛠️ Tighter control points (-100 instead of -200) prevent line from bleeding off-canvas
     if (currentLevel < 15) {
-        svgParts.push(`<path d="M ${startX} ${rowY[2]} C ${startX - 200} ${rowY[2]}, ${startX - 200} ${rowY[3]}, ${startX} ${rowY[3]}" fill="none" stroke="${lineColor}" stroke-width="${lineWidth}" />`);
+        svgParts.push(`<path d="M ${startX} ${rowY[2]} C ${startX - 100} ${rowY[2]}, ${startX - 100} ${rowY[3]}, ${startX} ${rowY[3]}" />`);
     }
 
     // --- ROW 3 (Levels 15-21, Left to Right) ---
     if (currentLevel < 21) {
         let r3Start = currentLevel <= 14 ? startX : startX + (((currentLevel - 14) / 7) * totalRowWidth);
-        svgParts.push(`<line x1="${r3Start}" y1="${rowY[3]}" x2="${endX}" y2="${rowY[3]}" stroke="${lineColor}" stroke-width="${lineWidth}" stroke-linecap="round" />`);
+        svgParts.push(`<line x1="${r3Start}" y1="${rowY[3]}" x2="${endX}" y2="${rowY[3]}" />`);
     }
+
+    // 🎨 Layout Styling Setup
+    const coreLineWidth = "24";     // Thicker, bolder strike-through bar
+    const glowLineWidth = "44";     // Ultra-wide footprint underneath for the aura effect
+    const glowColor = "#00ffff";    // Bright Neon Cyan glow (Matches the layout accents)
 
     const svgOverlay = Buffer.from(`
         <svg width="2752" height="1536" xmlns="http://www.w3.org/2000/svg">
-            ${svgParts.join('\n')}
+            <defs>
+                <filter id="neon-blur" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur stdDeviation="10" result="blur" />
+                    <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+            </defs>
+            
+            <g fill="none" stroke="${glowColor}" stroke-width="${glowLineWidth}" stroke-linecap="round" filter="url(#neon-blur)" opacity="0.85">
+                ${svgParts.join('\n')}
+            </g>
+            
+            <g fill="none" stroke="#ffffff" stroke-width="${coreLineWidth}" stroke-linecap="round">
+                ${svgParts.join('\n')}
+            </g>
         </svg>
     `);
 
