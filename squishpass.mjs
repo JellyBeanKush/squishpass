@@ -171,6 +171,9 @@ async function main() {
                 message_id: lastPostData.message_id || data.id,
                 total_points: totalPoints,
                 current_level: currentLevel,
+                points_needed: pointsNeeded,
+                next_reward: LEVEL_DATA[nextLvl].reward,
+                image_name: `SPO ${currentLevel}.png`,
                 last_update: new Date().toISOString()
             });
             console.log("Successfully synched to Discord.");
