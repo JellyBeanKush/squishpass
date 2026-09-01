@@ -6,7 +6,7 @@ import sharp from 'sharp';
 // =============================================================================
 const PERSISTENCE_FILE = "last_post_data.json";
 const THREAD_ID = "1476295145371467908"; 
-const BASE_IMAGE = './images/base_board.jpeg'; 
+const BASE_IMAGE = './images/base_board.png'; 
 const OUTPUT_IMAGE = './images/final_discord_board.jpg';
 
 // =============================================================================
