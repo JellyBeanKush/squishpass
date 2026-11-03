@@ -39,9 +39,6 @@ export const squishPassLevels = {
 // HELPER FUNCTIONS
 // ---------------------------------------------------------
 
-/**
- * Calculates the current level based on total points.
- */
 export function getCurrentLevel(currentPoints) {
     let achievedLevel = 0;
     for (let i = 0; i <= 21; i++) {
@@ -54,29 +51,34 @@ export function getCurrentLevel(currentPoints) {
     return achievedLevel;
 }
 
-/**
- * Generates the composite SquishPass board image using Sharp.
- * Layers: Background -> Hex Board -> Current Level sp X.png overlay
- */
 export async function generateBoardImage(currentPoints, outputPath = 'output.png') {
     const currentLevel = getCurrentLevel(currentPoints);
-    const overlayImage = `sp ${currentLevel}.png`; // sp 0.png to sp 21.png
+    const overlayImage = `sp ${currentLevel}.png`;
     
     try {
-        // Ensure the overlay image exists for this level
         if (!fs.existsSync(overlayImage)) {
             console.warn(`Overlay image ${overlayImage} not found. Skipping composite.`);
             return;
         }
 
-        await sharp('background.png') // Your background image behind the hex board
+        // Process the overlay to make it 50% see-through
+        const transparentOverlay = await sharp(overlayImage)
+            .ensureAlpha()
+            .evaluate({
+                apply: 'multiply',
+                parameters: [1, 1, 1, 0.5] 
+            })
+            .toBuffer();
+
+        // Composite the images using the new transparent buffer
+        await sharp('background.png') 
             .composite([
                 { 
-                    input: 'hex_board.png', // The main hex board layout
+                    input: 'hex_board.png',
                     blend: 'over' 
                 },
                 { 
-                    input: overlayImage, // The specific active level tile
+                    input: transparentOverlay, 
                     blend: 'over'
                 }
             ])
