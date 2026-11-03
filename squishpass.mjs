@@ -12,38 +12,38 @@ const OUTPUT_IMAGE = './images/final_discord_board.jpg';
 
 // =============================================================================
 // --- LEVEL DATA DEFINITION ---
-// 21-Level Board: Left-to-Right on Every Row
+// 21-Level Board: 700-Point Max Cap, Left-to-Right
 // =============================================================================
 const LEVEL_DATA = {
     0: { points: 0, reward: "Squish Pass Start", description: "The journey begins!" },
     // Row 1 (Top): Left to Right
-    1: { points: 1, reward: "MUSIC MADNESS", description: "Music tournament stream!" },
-    2: { points: 5, reward: "X3 HONEY BUNS", description: "Triple points active!" },
-    3: { points: 10, reward: "+5 HOURS", description: "5 extra hours added." },
-    4: { points: 20, reward: "$10 GIVE AWAY", description: "Community giveaway!" },
-    5: { points: 30, reward: "ARTS & CRAFTS", description: "Creative crafting stream!" },
-    6: { points: 45, reward: "X2 SQUISH POINTS", description: "Double squish points boost!" },
-    7: { points: 60, reward: "DRAG AND DRINKS", description: "Drag stream & drink mixing!" },
+    1: { points: 5, reward: "MUSIC MADNESS", description: "Music tournament stream!" },
+    2: { points: 10, reward: "X3 HONEY BUNS", description: "Triple points active!" },
+    3: { points: 20, reward: "+5 HOURS", description: "5 extra hours added." },
+    4: { points: 30, reward: "$10 GIVE AWAY", description: "Community giveaway!" },
+    5: { points: 45, reward: "ARTS & CRAFTS", description: "Creative crafting stream!" },
+    6: { points: 69, reward: "X2 SQUISH POINTS", description: "Double squish points boost!" },
+    7: { points: 95, reward: "DRAG AND DRINKS", description: "Drag stream & drink mixing!" },
     // Row 2 (Middle): Left to Right
-    8: { points: 80, reward: "MOVIE MARATHON", description: "Movie watch party unlocked!" },
-    9: { points: 100, reward: "X5 HONEY BUNS", description: "5X points active!" },
-    10: { points: 125, reward: "+10 HOURS", description: "10 extra hours added." },
-    11: { points: 150, reward: "$20 GIVE AWAY", description: "Mid-pass cash drop!" },
-    12: { points: 180, reward: "BEAR VS BEAN", description: "Head-to-head showdown!" },
-    13: { points: 210, reward: "X3 SQUISH POINTS", description: "Triple squish points boost!" },
-    14: { points: 240, reward: "COOKING AFTER DARK", description: "Late-night cooking stream!" },
+    8: { points: 125, reward: "MOVIE MARATHON", description: "Movie watch party unlocked!" },
+    9: { points: 155, reward: "X5 HONEY BUNS", description: "5X points active!" },
+    10: { points: 185, reward: "+10 HOURS", description: "10 extra hours added." },
+    11: { points: 215, reward: "$20 GIVE AWAY", description: "Mid-pass cash drop!" },
+    12: { points: 250, reward: "BEAR VS BEAN", description: "Head-to-head showdown!" },
+    13: { points: 285, reward: "X3 SQUISH POINTS", description: "Triple squish points boost!" },
+    14: { points: 325, reward: "COOKING AFTER DARK", description: "Late-night cooking stream!" },
     // Row 3 (Bottom): Left to Right
-    15: { points: 275, reward: "KARAOKE PARTY", description: "Live singing stream!" },
-    16: { points: 310, reward: "X10 HONEY BUNS", description: "Massive multiplier active!" },
-    17: { points: 345, reward: "+20 HOURS", description: "Huge time bank deposit." },
-    18: { points: 380, reward: "$30 GIVE AWAY", description: "Late-stage cash giveaway!" },
-    19: { points: 420, reward: "WORK OUT SESH", description: "Fitness session!" },
-    20: { points: 460, reward: "X5 SQUISH POINTS", description: "Max squish points boost!" },
-    21: { points: 500, reward: "SHIRTLESS STREAMS", description: "The ultimate reward reached!" }
+    15: { points: 370, reward: "KARAOKE PARTY", description: "Live singing stream!" },
+    16: { points: 420, reward: "X10 HONEY BUNS", description: "Massive multiplier active!" },
+    17: { points: 470, reward: "+20 HOURS", description: "Huge time bank deposit." },
+    18: { points: 525, reward: "$30 GIVE AWAY", description: "Late-stage cash giveaway!" },
+    19: { points: 580, reward: "WORK OUT SESH", description: "Fitness session!" },
+    20: { points: 640, reward: "X5 SQUISH POINTS", description: "Max squish points boost!" },
+    21: { points: 700, reward: "SHIRTLESS STREAMS", description: "The ultimate reward reached!" }
 };
 
 // =============================================================================
-// --- UPDATED IMAGE GENERATOR WITH BACKGROUND ---
+// --- UPDATED IMAGE GENERATOR WITH BACKGROUND & ADJUSTABLE OPACITY ---
 // =============================================================================
 async function generateBoardImage(currentLevel) {
     const level = Math.min(Math.max(currentLevel, 0), 21);
