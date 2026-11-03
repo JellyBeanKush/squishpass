@@ -23,13 +23,12 @@ jobs:
 
       - name: Force Update JSON Points
         run: |
-          # This sets the total_points in your JSON to the new number
           jq '.total_points = ${{ github.event.inputs.new_total }}' last_post_data.json > temp.json && mv temp.json last_post_data.json
 
       - name: Run Bot Logic
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          POINTS: 0 # We set this to 0 so it just recalculates the total from the JSON
+          POINTS: 0
         run: |
           node squishpass.mjs
 
@@ -37,6 +36,6 @@ jobs:
         run: |
           git config --global user.name "SquishPass Sync"
           git config --global user.email "bot@github.com"
-          git add last_post_data.json
-          git commit -m "Manual sync: ${{ github.event.inputs.new_total }} - Recalculated Logic"
+          git add last_post_data.json images/final_discord_board.jpg
+          git commit -m "Manual sync: ${{ github.event.inputs.new_total }} - Updated board image and JSON state"
           git push
