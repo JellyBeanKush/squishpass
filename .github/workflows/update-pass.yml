@@ -1,7 +1,7 @@
 name: Update SquishPass
 on:
   repository_dispatch:
-    types: [update-squishpass]
+    types: [update_squishpass]
 
 permissions:
   contents: write
