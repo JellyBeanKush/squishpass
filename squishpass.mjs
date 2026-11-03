@@ -43,7 +43,7 @@ const LEVEL_DATA = {
 };
 
 // =============================================================================
-// --- UPDATED IMAGE GENERATOR WITH BACKGROUND ---
+// --- UPDATED IMAGE GENERATOR WITH ADJUSTED OVERLAY OPACITY ---
 // =============================================================================
 async function generateBoardImage(currentLevel) {
     const level = Math.min(Math.max(currentLevel, 0), 21);
@@ -60,11 +60,11 @@ async function generateBoardImage(currentLevel) {
         await sharp(BACKGROUND_IMAGE)
             .composite([
                 { input: BASE_BOARD, top: 0, left: 0, blend: 'over' },
-                { input: overlayPath, top: 0, left: 0, blend: 'over' }
+                { input: overlayPath, top: 0, left: 0, blend: 'over', opacity: 0.75 }
             ])
             .toFile(OUTPUT_IMAGE);
         
-        console.log("Successfully created composite board with background and overlay level:", level);
+        console.log("Successfully created composite board with adjusted overlay opacity for level:", level);
     } catch (err) {
         console.error("Sharp composite error:", err);
     }
@@ -120,7 +120,7 @@ async function main() {
     
     const fullUnlockedList = Object.entries(LEVEL_DATA)
         .filter(([lvl]) => lvl > 0 && lvl <= currentLevel)
-        .map(([lvl, data] ) => `✅ Level ${lvl}: **${data.reward}**`)
+        .map(([lvl, data]) => `✅ Level ${lvl}: **${data.reward}**`)
         .join("\n") || "None yet!";
     
     const content = `⭐ **SQUISH PASS UPDATE!**\n` +
