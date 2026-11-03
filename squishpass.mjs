@@ -1,3 +1,14 @@
+Let's get this completely right.
+
+Looking at your board image (`squish hex - no bg.jpg`), your board has 3 rows of 7 spots, organized by ROYGBIV categories (Red, Orange, Yellow, Green, Blue, Indigo, Violet) repeated across the rows, and the path goes **right-to-left on every row**:
+
+* **Row 1 (Top, Right to Left):** Music Madness (Red), X3 Honey Buns (Orange), +5 Hours (Yellow), $10 Give Away (Green), Arts & Crafts (Blue), X2 Squish Points (Indigo), Drag And Drinks (Violet)
+* **Row 2 (Middle, Right to Left):** Movie Marathon (Red), X5 Honey Buns (Orange), +10 Hours (Yellow), $20 Give Away (Green), Bear Vs Bean (Blue), X3 Squish Points (Indigo), Cooking After Dark (Violet)
+* **Row 3 (Bottom, Right to Left):** Karaoke Party (Red), X10 Honey Buns (Orange), +20 Hours (Yellow), $30 Give Away (Green), Work Out Sesh (Blue), X5 Squish Points (Indigo), Shirtless Streams (Violet)
+
+Here is the fully corrected `LEVEL_DATA` matrix mapping your exact point table (`1, 5, 10, 20, 30, 45, 60, 80, 100, 125, 150, 180, 210, 240, 275, 310, 345, 380, 420, 460, 500`) to this exact right-to-left layout across all three rows:
+
+```javascript
 import fs from 'fs';
 import sharp from 'sharp';
 
@@ -11,38 +22,42 @@ const OUTPUT_IMAGE = './images/final_discord_board.jpg';
 
 // =============================================================================
 // --- LEVEL DATA DEFINITION ---
-// Providing full descriptive data for each level on the board.
+// 21-Level Board: Right-to-Left on Every Row (ROYGBIV Sequence)
 // =============================================================================
 const LEVEL_DATA = {
- 0: { points: 0, reward: "Squish Pass Start", description: "The journey begins!" },
-    1: { points: 1, reward: "HBS ART PACK", description: "Digital wallpapers and coloring pages!" },
-    2: { points: 5, reward: "MUSIC MADNESS", description: "Music tournament stream!" },
-    3: { points: 10, reward: "X2 HONEY BUNS", description: "Double points active!" },
-    4: { points: 15, reward: "+10 HOURS", description: "10 extra hours added." },
-    5: { points: 25, reward: "TIER LISTS", description: "Tier list Stream!" },
-    6: { points: 40, reward: "WEEKLY WATCH PARTY", description: "TV and movie nights unlocked!" },
-    7: { points: 60, reward: "BEAR VS BEAN", description: "Head-to-head showdown!" },
-    8: { points: 85, reward: "X3 HONEY BUNS", description: "Triple points active!" },
-    9: { points: 115, reward: "+10 HOURS", description: "Time bank deposit." },
-    10: { points: 150, reward: "KARAOKE PARTY", description: "Live singing stream!" },
-    11: { points: 185, reward: "CHAT CHOOSES GAME", description: "Chat picks our bonus game for next month!" },
-    12: { points: 225, reward: "THE SQUISH TABLE", description: "Cooking & cocktail making stream!" },
-    13: { points: 265, reward: "X4 HONEY BUNS", description: "Quadruple points active!" },
-    14: { points: 310, reward: "+10 HOURS", description: "Time bank deposit." },
-    15: { points: 355, reward: "WORK OUT", description: "Fitness session!" },
-    16: { points: 405, reward: "FIELD TRIP", description: "Mobile stream adventure!" },
-    17: { points: 455, reward: "X5 HONEY BUNS", description: "MAX MULTIPLIER!" },
-    18: { points: 510, reward: "TOPS OFF 'TIL RESET", description: "Shirtless until the Pass resets!" },
-    19: { points: 570, reward: "+10 HOURS", description: "Time bank deposit." },
-    20: { points: 635, reward: "MERCH GIVEAWAY", description: "Exclusive giveaway!" },
-    21: { points: 700, reward: "DRAG STREAM", description: "The ultimate reward!" }
+    0: { points: 0, reward: "Squish Pass Start", description: "The journey begins!" },
+    // Row 1 (Top): Right to Left
+    1: { points: 1, reward: "MUSIC MADNESS", description: "Music tournament stream!" },
+    2: { points: 5, reward: "X3 HONEY BUNS", description: "Triple points active!" },
+    3: { points: 10, reward: "+5 HOURS", description: "5 extra hours added." },
+    4: { points: 20, reward: "$10 GIVE AWAY", description: "Community giveaway!" },
+    5: { points: 30, reward: "ARTS & CRAFTS", description: "Creative crafting stream!" },
+    6: { points: 45, reward: "X2 SQUISH POINTS", description: "Double squish points boost!" },
+    7: { points: 60, reward: "DRAG AND DRINKS", description: "Drag stream & drink mixing!" },
+    // Row 2 (Middle): Right to Left
+    8: { points: 80, reward: "MOVIE MARATHON", description: "Movie watch party unlocked!" },
+    9: { points: 100, reward: "X5 HONEY BUNS", description: "5X points active!" },
+    10: { points: 125, reward: "+10 HOURS", description: "10 extra hours added." },
+    11: { points: 150, reward: "$20 GIVE AWAY", description: "Mid-pass cash drop!" },
+    12: { points: 180, reward: "BEAR VS BEAN", description: "Head-to-head showdown!" },
+    13: { points: 210, reward: "X3 SQUISH POINTS", description: "Triple squish points boost!" },
+    14: { points: 240, reward: "COOKING AFTER DARK", description: "Late-night cooking stream!" },
+    // Row 3 (Bottom): Right to Left
+    15: { points: 275, reward: "KARAOKE PARTY", description: "Live singing stream!" },
+    16: { points: 310, reward: "X10 HONEY BUNS", description: "Massive multiplier active!" },
+    17: { points: 345, reward: "+20 HOURS", description: "Huge time bank deposit." },
+    18: { points: 380, reward: "$30 GIVE AWAY", description: "Late-stage cash giveaway!" },
+    19: { points: 420, reward: "WORK OUT SESH", description: "Fitness session!" },
+    20: { points: 460, reward: "X5 SQUISH POINTS", description: "Max squish points boost!" },
+    21: { points: 500, reward: "SHIRTLESS STREAMS", description: "The ultimate reward reached!" }
 };
 
 // =============================================================================
 // --- UPDATED IMAGE GENERATOR ---
+// =============================================================================
 async function generateBoardImage(currentLevel) {
     const level = Math.min(Math.max(currentLevel, 0), 21);
-    const overlayPath = `./images/SPO ${level}.png`;
+    const overlayPath = `./images/sp ${level}.png`;
 
     console.log("Attempting to overlay:", overlayPath);
 
@@ -74,7 +89,6 @@ async function generateBoardImage(currentLevel) {
 
 // =============================================================================
 // --- DATA PERSISTENCE HELPERS ---
-// Handles reading and writing the state of the stream's progress.
 // =============================================================================
 function loadLastPostData() {
     if (fs.existsSync(PERSISTENCE_FILE)) {
@@ -98,7 +112,6 @@ function saveCurrentState(data) {
 
 // =============================================================================
 // --- MAIN ORCHESTRATION ---
-// Coordinates the data calculation, image processing, and API transmission.
 // =============================================================================
 async function main() {
     console.log("Starting SquishPass update process...");
@@ -173,7 +186,7 @@ async function main() {
                 current_level: currentLevel,
                 points_needed: pointsNeeded,
                 next_reward: LEVEL_DATA[nextLvl].reward,
-                image_name: `SPO ${currentLevel}.png`,
+                image_name: `sp ${currentLevel}.png`,
                 last_update: new Date().toISOString()
             });
             console.log("Successfully synched to Discord.");
@@ -191,12 +204,4 @@ main().catch(err => {
     process.exit(1);
 });
 
-/*
-    =========================================================================
-    --- DOCUMENTATION AND FOOTER ---
-    This script is designed to run automatically when the stream points
-    receive an update. It maps user progress to the board path defined in
-    the generateBoardImage function using precise quadratic curves to ensure
-    smooth alignment across rows.
-    =========================================================================
-*/
+```
