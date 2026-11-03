@@ -51,20 +51,25 @@ async function generateBoardImage(currentLevel) {
 
     console.log("Attempting to overlay:", overlayPath);
 
-    // Verify files exist
     if (!fs.existsSync(BACKGROUND_IMAGE) || !fs.existsSync(BASE_BOARD) || !fs.existsSync(overlayPath)) {
         console.error("CRITICAL: One or more image assets are missing in ./images/");
     }
 
     try {
+        // Pre-process the overlay so its white pixels become see-through (e.g., 40% opacity)
+        const processedOverlay = await sharp(overlayPath)
+            .ensureAlpha()
+            .linear(1, [0, 0, 0, -0.6]) // Lowers the alpha channel of the image
+            .toBuffer();
+
         await sharp(BACKGROUND_IMAGE)
             .composite([
                 { input: BASE_BOARD, top: 0, left: 0, blend: 'over' },
-                { input: overlayPath, top: 0, left: 0, blend: 'over', opacity: 0.45 }
+                { input: processedOverlay, top: 0, left: 0, blend: 'over' }
             ])
             .toFile(OUTPUT_IMAGE);
         
-        console.log("Successfully created composite board with background and overlay level:", level);
+        console.log("Successfully created composite board with adjusted mask transparency for level:", level);
     } catch (err) {
         console.error("Sharp composite error:", err);
     }
