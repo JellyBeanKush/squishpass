@@ -1,7 +1,7 @@
 name: Update SquishPass
 on:
   repository_dispatch:
-    types: [update_squishpass]
+    types: [update-squishpass]
 
 permissions:
   contents: write
@@ -16,7 +16,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24 # Keeping it on 24 to stay modern and clear the warning
+          node-version: 24
 
       - name: Install dependencies
         run: npm install
@@ -27,28 +27,27 @@ jobs:
           POINTS: ${{ github.event.client_payload.points }}
         run: |
           # 1. Setup Git Identity
-          git config --global user.name 'SquishBot'
-          git config --global user.email 'bot@github.com'
-          
+          git config --global user.name "SquishBot"
+          git config --global user.email "bot@github.com"
+
           # 2. Rebase to ensure we have the latest data before running logic
           git pull --rebase origin main
-          
+
           # 3. Initialize persistence file if missing
           if [ ! -f last_post_data.json ]; then
-            echo '{"message_id": null, "total_points": 0}' > last_post_data.json
+              echo '{"message_id": null, "total_points": 0}' > last_post_data.json
           fi
-          
+
           # 4. Run the script
           node squishpass.mjs
 
       - name: Push New ID, Points, and Board Image
         run: |
-          # Commit because message_id, total_points, OR the board image will have changed
           git add last_post_data.json images/final_discord_board.jpg
           if ! git diff --cached --quiet; then
-            git commit -m "Update persistence score data and board image [skip ci]"
-            git pull --rebase origin main
-            git push origin main
+              git commit -m "Update persistence score data and board image [skip ci]"
+              git pull --rebase origin main
+              git push origin main
           else
-            echo "No changes to save."
+              echo "No changes to save."
           fi
