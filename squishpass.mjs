@@ -1,18 +1,3 @@
-That background with the retro grid and title looks incredible!
-
-To add it into the pipeline, we just update `sharp` to layer three images together in one pass:
-
-1. **Background** (`./images/background.jpg`)
-
-
-2. **Base Hex Board** (`./images/base_board.png`)
-3. **Whited-out Lock Overlay** (`./images/sp {level}.png`)
-
-*(Just make sure you save your background image inside your `./images/` folder as `background.jpg`).*
-
-Here is the fully updated `squishpass.mjs` script with the background integration:
-
-```javascript
 import fs from 'fs';
 import sharp from 'sharp';
 
@@ -135,7 +120,7 @@ async function main() {
     
     const fullUnlockedList = Object.entries(LEVEL_DATA)
         .filter(([lvl]) => lvl > 0 && lvl <= currentLevel)
-        .map(([lvl, data]) => `✅ Level ${lvl}: **${data.reward}**`)
+        .map(([lvl, data] ) => `✅ Level ${lvl}: **${data.reward}**`)
         .join("\n") || "None yet!";
     
     const content = `⭐ **SQUISH PASS UPDATE!**\n` +
@@ -203,5 +188,3 @@ main().catch(err => {
     console.error("Fatal error in main script:", err);
     process.exit(1);
 });
-
-```
