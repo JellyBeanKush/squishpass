@@ -43,35 +43,36 @@ const LEVEL_DATA = {
 };
 
 // =============================================================================
-// --- UPDATED IMAGE GENERATOR WITH BACKGROUND & ADJUSTABLE OPACITY ---
+// --- ROBUST IMAGE GENERATOR WITH DIRECT ERROR THROWING ---
 // =============================================================================
 async function generateBoardImage(currentLevel) {
     const level = Math.min(Math.max(currentLevel, 0), 21);
     const overlayPath = `./images/sp ${level}.png`;
 
-    console.log("Attempting to overlay:", overlayPath);
+    console.log(`Generating board image for level ${level} using overlay: ${overlayPath}`);
 
-    if (!fs.existsSync(BACKGROUND_IMAGE) || !fs.existsSync(BASE_BOARD) || !fs.existsSync(overlayPath)) {
-        console.error("CRITICAL: One or more image assets are missing in ./images/");
+    // Ensure images directory exists
+    if (!fs.existsSync('./images')) {
+        fs.mkdirSync('./images', { recursive: true });
     }
 
-    try {
-        // Pre-process the overlay so its white pixels become see-through (e.g., 40% opacity)
-        const processedOverlay = await sharp(overlayPath)
-            .ensureAlpha()
-            .linear(1, [0, 0, 0, -0.6]) // Lowers the alpha channel of the image
-            .toBuffer();
+    // Verify files exist before processing
+    if (!fs.existsSync(BACKGROUND_IMAGE)) throw new Error(`Missing background image: ${BACKGROUND_IMAGE}`);
+    if (!fs.existsSync(BASE_BOARD)) throw new Error(`Missing base board image: ${BASE_BOARD}`);
+    if (!fs.existsSync(overlayPath)) throw new Error(`Missing level overlay image: ${overlayPath}`);
 
+    try {
         await sharp(BACKGROUND_IMAGE)
             .composite([
                 { input: BASE_BOARD, top: 0, left: 0, blend: 'over' },
-                { input: processedOverlay, top: 0, left: 0, blend: 'over' }
+                { input: overlayPath, top: 0, left: 0, blend: 'over', opacity: 0.75 }
             ])
             .toFile(OUTPUT_IMAGE);
         
-        console.log("Successfully created composite board with adjusted mask transparency for level:", level);
+        console.log(`SUCCESS: Wrote new image to ${OUTPUT_IMAGE}`);
     } catch (err) {
-        console.error("Sharp composite error:", err);
+        console.error("FATAL: Sharp failed to composite the board image:", err);
+        throw err; // Stop execution so we know it failed instead of hiding it
     }
 
     return OUTPUT_IMAGE;
@@ -106,12 +107,10 @@ function saveCurrentState(data) {
 async function main() {
     console.log("Starting SquishPass update process...");
 
-    // 1. Calculate incoming progress
     const incomingPoints = parseFloat(process.env.POINTS || 0);
     const lastPostData = loadLastPostData();
     const totalPoints = parseFloat((lastPostData.total_points + incomingPoints).toFixed(2)); 
 
-    // 2. Determine current level based on total points
     let currentLevel = 0;
     for (const [lvl, data] of Object.entries(LEVEL_DATA)) {
         if (totalPoints >= data.points) {
@@ -119,7 +118,6 @@ async function main() {
         }
     }
 
-    // 3. Prepare milestone information for Discord notification
     const nextLvl = Math.min(currentLevel + 1, 21);
     const pointsNeeded = parseFloat(Math.max(0, LEVEL_DATA[nextLvl].points - totalPoints).toFixed(2));
     
@@ -134,10 +132,8 @@ async function main() {
                     `🎯 **Next Milestone:** ${pointsNeeded} points to unlock **${LEVEL_DATA[nextLvl].reward}**\n` +
                     `💖 **Support the stream to unlock the next milestone!**`;
 
-    // 4. Generate the visual representation of the progress
     const finalImagePath = await generateBoardImage(currentLevel);
 
-    // 5. Discord Webhook Transmission Logic
     const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
     if (!webhookUrl) {
         console.error("Webhook URL is missing in environment variables.");
@@ -152,14 +148,15 @@ async function main() {
     const finalUrl = new URL(targetUrl);
     finalUrl.searchParams.set('thread_id', THREAD_ID);
     
+    const uniqueAttachmentName = `board_${Date.now()}.jpg`;
+
     const formData = new FormData();
-    formData.append('files[0]', new Blob([fs.readFileSync(finalImagePath)]), 'board.jpg');
+    formData.append('files[0]', new Blob([fs.readFileSync(finalImagePath)]), uniqueAttachmentName);
     formData.append('payload_json', JSON.stringify({ 
         content: content, 
-        attachments: [{ id: 0, filename: 'board.jpg' }] 
+        attachments: [{ id: 0, filename: uniqueAttachmentName }] 
     }));
 
-    // 6. Execute transmission
     try {
         const response = await fetch(finalUrl.toString(), { 
             method: lastPostData.message_id ? 'PATCH' : 'POST', 
@@ -179,7 +176,7 @@ async function main() {
                 image_name: `sp ${currentLevel}.png`,
                 last_update: new Date().toISOString()
             });
-            console.log("Successfully synched to Discord.");
+            console.log("Successfully synched to Discord with fresh image generation.");
         } else {
             console.error("Discord API returned error:", responseText);
         }
@@ -188,7 +185,6 @@ async function main() {
     }
 }
 
-// Execution trigger
 main().catch(err => {
     console.error("Fatal error in main script:", err);
     process.exit(1);
