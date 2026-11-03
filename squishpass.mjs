@@ -60,7 +60,7 @@ async function generateBoardImage(currentLevel) {
         await sharp(BACKGROUND_IMAGE)
             .composite([
                 { input: BASE_BOARD, top: 0, left: 0, blend: 'over' },
-                { input: overlayPath, top: 0, left: 0, blend: 'over', opacity: 0.75 }
+                { input: overlayPath, top: 0, left: 0, blend: 'over', opacity: 0.45 }
             ])
             .toFile(OUTPUT_IMAGE);
         
