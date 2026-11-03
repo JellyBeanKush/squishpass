@@ -1,12 +1,16 @@
-Let's get this completely right.
+That background with the retro grid and title looks incredible!
 
-Looking at your board image (`squish hex - no bg.jpg`), your board has 3 rows of 7 spots, organized by ROYGBIV categories (Red, Orange, Yellow, Green, Blue, Indigo, Violet) repeated across the rows, and the path goes **right-to-left on every row**:
+To add it into the pipeline, we just update `sharp` to layer three images together in one pass:
 
-* **Row 1 (Top, Right to Left):** Music Madness (Red), X3 Honey Buns (Orange), +5 Hours (Yellow), $10 Give Away (Green), Arts & Crafts (Blue), X2 Squish Points (Indigo), Drag And Drinks (Violet)
-* **Row 2 (Middle, Right to Left):** Movie Marathon (Red), X5 Honey Buns (Orange), +10 Hours (Yellow), $20 Give Away (Green), Bear Vs Bean (Blue), X3 Squish Points (Indigo), Cooking After Dark (Violet)
-* **Row 3 (Bottom, Right to Left):** Karaoke Party (Red), X10 Honey Buns (Orange), +20 Hours (Yellow), $30 Give Away (Green), Work Out Sesh (Blue), X5 Squish Points (Indigo), Shirtless Streams (Violet)
+1. **Background** (`./images/background.jpg`)
 
-Here is the fully corrected `LEVEL_DATA` matrix mapping your exact point table (`1, 5, 10, 20, 30, 45, 60, 80, 100, 125, 150, 180, 210, 240, 275, 310, 345, 380, 420, 460, 500`) to this exact right-to-left layout across all three rows:
+
+2. **Base Hex Board** (`./images/base_board.png`)
+3. **Whited-out Lock Overlay** (`./images/sp {level}.png`)
+
+*(Just make sure you save your background image inside your `./images/` folder as `background.jpg`).*
+
+Here is the fully updated `squishpass.mjs` script with the background integration:
 
 ```javascript
 import fs from 'fs';
@@ -17,7 +21,8 @@ import sharp from 'sharp';
 // =============================================================================
 const PERSISTENCE_FILE = "last_post_data.json";
 const THREAD_ID = "1476295145371467908"; 
-const BASE_IMAGE = './images/base_board.png'; 
+const BACKGROUND_IMAGE = './images/background.jpg'; 
+const BASE_BOARD = './images/base_board.png'; 
 const OUTPUT_IMAGE = './images/final_discord_board.jpg';
 
 // =============================================================================
@@ -53,7 +58,7 @@ const LEVEL_DATA = {
 };
 
 // =============================================================================
-// --- UPDATED IMAGE GENERATOR ---
+// --- UPDATED IMAGE GENERATOR WITH BACKGROUND ---
 // =============================================================================
 async function generateBoardImage(currentLevel) {
     const level = Math.min(Math.max(currentLevel, 0), 21);
@@ -61,27 +66,22 @@ async function generateBoardImage(currentLevel) {
 
     console.log("Attempting to overlay:", overlayPath);
 
-    // Check if file actually exists
-    if (!fs.existsSync(overlayPath)) {
-        console.error("CRITICAL: File not found at path:", overlayPath);
-        await sharp(BASE_IMAGE).toFile(OUTPUT_IMAGE);
-        return OUTPUT_IMAGE;
+    // Verify files exist
+    if (!fs.existsSync(BACKGROUND_IMAGE) || !fs.existsSync(BASE_BOARD) || !fs.existsSync(overlayPath)) {
+        console.error("CRITICAL: One or more image assets are missing in ./images/");
     }
 
     try {
-        await sharp(BASE_IMAGE)
-            .composite([{ 
-                input: overlayPath, 
-                top: 0, 
-                left: 0,
-                blend: 'over' 
-            }])
+        await sharp(BACKGROUND_IMAGE)
+            .composite([
+                { input: BASE_BOARD, top: 0, left: 0, blend: 'over' },
+                { input: overlayPath, top: 0, left: 0, blend: 'over' }
+            ])
             .toFile(OUTPUT_IMAGE);
         
-        console.log("Successfully created board with overlay:", overlayPath);
+        console.log("Successfully created composite board with background and overlay level:", level);
     } catch (err) {
         console.error("Sharp composite error:", err);
-        await sharp(BASE_IMAGE).toFile(OUTPUT_IMAGE);
     }
 
     return OUTPUT_IMAGE;
