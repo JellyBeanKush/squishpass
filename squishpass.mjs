@@ -66,7 +66,7 @@ export async function generateBoardImage(currentPoints, outputPath = 'output.png
             .ensureAlpha()
             .evaluate({
                 apply: 'multiply',
-                parameters: [1, 1, 1, 0.5] 
+                parameters: [1, 1, 1, 0.3] 
             })
             .toBuffer();
 
