@@ -61,16 +61,14 @@ export async function generateBoardImage(currentPoints, outputPath = 'output.png
             return;
         }
 
-        // Process the overlay to make it 50% see-through
         const transparentOverlay = await sharp(overlayImage)
             .ensureAlpha()
             .evaluate({
                 apply: 'multiply',
-                parameters: [1, 1, 1, 0.3] 
+                parameters: [1, 1, 1, 0.5] 
             })
             .toBuffer();
 
-        // Composite the images using the new transparent buffer
         await sharp('background.png') 
             .composite([
                 { 
@@ -84,8 +82,75 @@ export async function generateBoardImage(currentPoints, outputPath = 'output.png
             ])
             .toFile(outputPath);
             
-        console.log(`Successfully generated board for Level ${currentLevel} (${currentPoints} pts) at ${outputPath}`);
+        console.log(`Successfully generated board for Level ${currentLevel} (${currentPoints} pts)`);
     } catch (error) {
         console.error("Error generating board image with Sharp:", error);
     }
 }
+
+// ---------------------------------------------------------
+// MAIN BOT EXECUTION & DISCORD WEBHOOK
+// ---------------------------------------------------------
+
+async function runBot() {
+    // 1. Get current points from points.json
+    let currentPoints = 0;
+    try {
+        const rawData = fs.readFileSync('points.json', 'utf8');
+        const data = JSON.parse(rawData);
+        currentPoints = data.total_points || 0;
+    } catch (err) {
+        console.error("Error reading points.json. Defaulting to 0 points.", err);
+    }
+
+    const currentLevel = getCurrentLevel(currentPoints);
+    const levelData = squishPassLevels[currentLevel];
+    const nextLevel = squishPassLevels[currentLevel + 1];
+
+    // 2. Build the image
+    await generateBoardImage(currentPoints, 'output.png');
+
+    // 3. Post to Discord
+    // IMPORTANT: Make sure your Webhook URL is loaded from your GitHub Secrets, or paste it directly below in quotes!
+    const webhookUrl = process.env.DISCORD_WEBHOOK_URL || 'YOUR_WEBHOOK_URL_HERE';
+
+    if (webhookUrl === 'YOUR_WEBHOOK_URL_HERE') {
+        console.warn("No Discord Webhook URL provided. Skipping Discord post.");
+        return;
+    }
+
+    try {
+        const formData = new FormData();
+        
+        let messageText = `**SquishPass Update!**\nCurrent Points: ${currentPoints}\nCurrent Level: **${currentLevel} - ${levelData.reward}**\n*${levelData.description}*`;
+        
+        if (nextLevel) {
+            const pointsToNext = nextLevel.points - currentPoints;
+            messageText += `\n\n*Next unlock in ${pointsToNext} points: ${nextLevel.reward}*`;
+        }
+
+        formData.append('content', messageText);
+
+        // Attach the newly generated image
+        const imageBuffer = fs.readFileSync('output.png');
+        const blob = new Blob([imageBuffer], { type: 'image/png' });
+        formData.append('file', blob, 'output.png');
+
+        console.log("Sending update to Discord...");
+        const response = await fetch(webhookUrl, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            console.log("Successfully updated Discord!");
+        } else {
+            console.error("Discord rejected the request:", response.status, response.statusText);
+        }
+    } catch (error) {
+        console.error("Failed to post to Discord webhook:", error);
+    }
+}
+
+// Run the bot
+runBot();
