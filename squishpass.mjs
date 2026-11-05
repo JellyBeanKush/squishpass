@@ -1,5 +1,13 @@
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import sharp from 'sharp';
+import express from 'express';
+import http from 'http';
+import { WebSocketServer } from 'ws';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // =============================================================================
 // --- CONFIGURATION AND ENVIRONMENT SETTINGS ---
@@ -9,6 +17,15 @@ const THREAD_ID = "1476295145371467908";
 const BACKGROUND_IMAGE = './images/background.jpg'; 
 const BASE_BOARD = './images/base_board.png'; 
 const OUTPUT_IMAGE = './images/final_discord_board.jpg';
+const PORT = process.env.PORT || 3000;
+
+// Express & WebSocket setup
+const app = express();
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
 // =============================================================================
 // --- LEVEL DATA DEFINITION ---
@@ -16,7 +33,6 @@ const OUTPUT_IMAGE = './images/final_discord_board.jpg';
 // =============================================================================
 const LEVEL_DATA = {
     0: { points: 0, reward: "Squish Pass Start", description: "The journey begins!" },
-    // Row 1 (Top): Left to Right
     1: { points: 5, reward: "MUSIC MADNESS", description: "Music tournament stream!" },
     2: { points: 10, reward: "X3 HONEY BUNS", description: "Triple points active!" },
     3: { points: 20, reward: "+5 HOURS", description: "5 extra hours added." },
@@ -24,7 +40,6 @@ const LEVEL_DATA = {
     5: { points: 45, reward: "ARTS & CRAFTS", description: "Creative crafting stream!" },
     6: { points: 69, reward: "X2 SQUISH POINTS", description: "Double squish points boost!" },
     7: { points: 95, reward: "DRAG AND DRINKS", description: "Drag stream & drink mixing!" },
-    // Row 2 (Middle): Left to Right
     8: { points: 125, reward: "MOVIE MARATHON", description: "Movie watch party unlocked!" },
     9: { points: 155, reward: "X5 HONEY BUNS", description: "5X points active!" },
     10: { points: 185, reward: "+10 HOURS", description: "10 extra hours added." },
@@ -32,7 +47,6 @@ const LEVEL_DATA = {
     12: { points: 250, reward: "BEAR VS BEAN", description: "Head-to-head showdown!" },
     13: { points: 285, reward: "X3 SQUISH POINTS", description: "Triple squish points boost!" },
     14: { points: 325, reward: "COOKING AFTER DARK", description: "Late-night cooking stream!" },
-    // Row 3 (Bottom): Left to Right
     15: { points: 370, reward: "KARAOKE PARTY", description: "Live singing stream!" },
     16: { points: 420, reward: "X10 HONEY BUNS", description: "Massive multiplier active!" },
     17: { points: 470, reward: "+20 HOURS", description: "Huge time bank deposit." },
@@ -51,12 +65,10 @@ async function generateBoardImage(currentLevel) {
 
     console.log(`Generating board image for level ${level} using overlay: ${overlayPath}`);
 
-    // Ensure images directory exists
     if (!fs.existsSync('./images')) {
         fs.mkdirSync('./images', { recursive: true });
     }
 
-    // Verify files exist before processing
     if (!fs.existsSync(BACKGROUND_IMAGE)) throw new Error(`Missing background image: ${BACKGROUND_IMAGE}`);
     if (!fs.existsSync(BASE_BOARD)) throw new Error(`Missing base board image: ${BASE_BOARD}`);
     if (!fs.existsSync(overlayPath)) throw new Error(`Missing level overlay image: ${overlayPath}`);
@@ -72,7 +84,7 @@ async function generateBoardImage(currentLevel) {
         console.log(`SUCCESS: Wrote new image to ${OUTPUT_IMAGE}`);
     } catch (err) {
         console.error("FATAL: Sharp failed to composite the board image:", err);
-        throw err; // Stop execution so we know it failed instead of hiding it
+        throw err;
     }
 
     return OUTPUT_IMAGE;
@@ -90,7 +102,7 @@ function loadLastPostData() {
             console.error("Critical error reading persistence file. Resetting progress.", error);
         }
     }
-    return { message_id: null, total_points: 0 };
+    return { message_id: null, total_points: 0, multiplier: 1 };
 }
 
 function saveCurrentState(data) {
@@ -101,15 +113,116 @@ function saveCurrentState(data) {
     }
 }
 
-// =============================================================================
-// --- MAIN ORCHESTRATION ---
-// =============================================================================
-async function main() {
-    console.log("Starting SquishPass update process...");
+// Load initial state from disk
+const persistentData = loadLastPostData();
+let squishState = {
+    totalPoints: persistentData.total_points || 0,
+    multiplier: persistentData.multiplier || 1
+};
 
-    const incomingPoints = parseFloat(process.env.POINTS || 0);
-    const lastPostData = loadLastPostData();
-    const totalPoints = parseFloat((lastPostData.total_points + incomingPoints).toFixed(2)); 
+// =============================================================================
+// --- CONCURRENT EVENT QUEUE & CALCULATION ENGINE ---
+// =============================================================================
+let isProcessingQueue = false;
+const eventQueue = [];
+
+function enqueueEvent(eventData) {
+    eventQueue.push(eventData);
+    processEventQueue();
+}
+
+async function processEventQueue() {
+    if (isProcessingQueue || eventQueue.length === 0) return;
+    isProcessingQueue = true;
+
+    const event = eventQueue.shift();
+    await handleEventCalculation(event);
+
+    isProcessingQueue = false;
+    processEventQueue();
+}
+
+async function handleEventCalculation(data) {
+    let basePoints = 0;
+
+    switch (data.type) {
+        case 'BITS':
+        case 'TANGIA':
+        case 'BLERP':
+            basePoints = parseFloat(data.amount) * 0.01;
+            break;
+        case 'SUB':
+            basePoints = data.tier === 3 ? 15 : (data.tier === 2 ? 5 : 3);
+            break;
+        case 'CHANNEL_POINT':
+            basePoints = parseFloat(data.amount) || 1;
+            break;
+        case 'RANDOM_REWARD':
+            basePoints = parseFloat(data.amount) || 0;
+            break;
+        case 'MANUAL_DONATION':
+            basePoints = parseFloat(data.amount) || 0;
+            break;
+        case 'SET_MULTIPLIER':
+            squishState.multiplier = Number(data.amount);
+            broadcastOverlayUpdate();
+            saveStateToDisk();
+            return;
+        default:
+            basePoints = parseFloat(data.amount) || 0;
+    }
+
+    let finalAddedPoints;
+    if (data.type === 'RANDOM_REWARD' && basePoints < 0) {
+        finalAddedPoints = basePoints; 
+    } else {
+        finalAddedPoints = basePoints * squishState.multiplier;
+    }
+
+    squishState.totalPoints = parseFloat(Math.max(0, squishState.totalPoints + finalAddedPoints).toFixed(2));
+    
+    await updateAndSyncDiscord();
+    broadcastOverlayUpdate();
+    saveStateToDisk();
+}
+
+function saveStateToDisk() {
+    const lastData = loadLastPostData();
+    saveCurrentState({
+        ...lastData,
+        total_points: squishState.totalPoints,
+        multiplier: squishState.multiplier
+    });
+}
+
+function broadcastOverlayUpdate() {
+    let currentLevel = 0;
+    for (const [lvl, data] of Object.entries(LEVEL_DATA)) {
+        if (squishState.totalPoints >= data.points) {
+            currentLevel = parseInt(lvl);
+        }
+    }
+    const nextLvl = Math.min(currentLevel + 1, 21);
+
+    const payload = JSON.stringify({
+        type: 'SQUISH_UPDATE',
+        totalPoints: squishState.totalPoints,
+        currentLevel: currentLevel,
+        nextLevelTarget: LEVEL_DATA[nextLvl].points,
+        rewardName: LEVEL_DATA[nextLvl].reward,
+        multiplier: squishState.multiplier
+    });
+
+    wss.clients.forEach(client => {
+        if (client.readyState === 1) client.send(payload);
+    });
+}
+
+// =============================================================================
+// --- DISCORD SYNC ORCHESTRATION ---
+// =============================================================================
+async function updateAndSyncDiscord() {
+    const totalPoints = squishState.totalPoints;
 
     let currentLevel = 0;
     for (const [lvl, data] of Object.entries(LEVEL_DATA)) {
@@ -127,12 +240,13 @@ async function main() {
         .join("\n") || "None yet!";
     
     const content = `⭐ **SQUISH PASS UPDATE!**\n` +
-                    `**Total Points:** ${totalPoints} | **Current Level:** ${currentLevel}\n\n` +
+                    `**Total Points:** ${totalPoints} | **Current Level:** ${currentLevel} | **Multiplier:** ${squishState.multiplier}x\n\n` +
                     `**Rewards Unlocked:**\n${fullUnlockedList}\n\n` +
                     `🎯 **Next Milestone:** ${pointsNeeded} points to unlock **${LEVEL_DATA[nextLvl].reward}**\n` +
                     `💖 **Support the stream to unlock the next milestone!**`;
 
-    const finalImagePath = await generateBoardImage(currentLevel);
+    const finalImagePath = await generatorBoardImageInternal(currentLevel);
+    const lastPostData = loadLastPostData();
 
     const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
     if (!webhookUrl) {
@@ -174,6 +288,7 @@ async function main() {
                 points_needed: pointsNeeded,
                 next_reward: LEVEL_DATA[nextLvl].reward,
                 image_name: `sp ${currentLevel}.png`,
+                multiplier: squishState.multiplier,
                 last_update: new Date().toISOString()
             });
             console.log("Successfully synched to Discord with fresh image generation.");
@@ -185,7 +300,90 @@ async function main() {
     }
 }
 
-main().catch(err => {
-    console.error("Fatal error in main script:", err);
-    process.exit(1);
+async function generatorBoardImageInternal(currentLevel) {
+    const level = Math.min(Math.max(currentLevel, 0), 21);
+    const overlayPath = `./images/sp ${level}.png`;
+
+    if (!fs.existsSync('./images')) fs.mkdirSync('./images', { recursive: true });
+    if (!fs.existsSync(BACKGROUND_IMAGE)) throw new Error(`Missing background image: ${BACKGROUND_IMAGE}`);
+    if (!fs.existsSync(BASE_BOARD)) throw new Error(`Missing base board image: ${BASE_BOARD}`);
+    if (!fs.existsSync(overlayPath)) throw new Error(`Missing level overlay image: ${overlayPath}`);
+
+    await sharp(BACKGROUND_IMAGE)
+        .composite([
+            { input: BASE_BOARD, top: 0, left: 0, blend: 'over' },
+            { input: overlayPath, top: 0, left: 0, blend: 'over', opacity: 0.75 }
+        ])
+        .toFile(OUTPUT_IMAGE);
+
+    return OUTPUT_IMAGE;
+}
+
+// =============================================================================
+// --- EXPRESS API ENDPOINTS FOR MIX IT UP & WEBHOOKS ---
+// =============================================================================
+
+// 1. Multiplier Toggles (!multiSP 1/2/3/4/5)
+app.post('/api/multiplier', (req, res) => {
+    const { mult, amount } = req.body;
+    const val = Number(mult !== undefined ? mult : amount);
+    
+    if ([1, 2, 3, 4, 5].includes(val)) {
+        enqueueEvent({ type: 'SET_MULTIPLIER', amount: val });
+        res.json({ success: true, multiplier: val });
+    } else {
+        res.status(400).json({ error: "Invalid multiplier value (must be 1-5)" });
+    }
+});
+
+// 2. Manual Donation Command (!$)
+app.post('/api/donation', (req, res) => {
+    const { amount, username } = req.body;
+    enqueueEvent({ type: 'MANUAL_DONATION', amount, username });
+    res.json({ success: true });
+});
+
+// 3. Channel Point Redemptions
+app.post('/api/channel-point', (req, res) => {
+    const { amount, username } = req.body;
+    enqueueEvent({ type: 'CHANNEL_POINT', amount: amount || 1, username });
+    res.json({ success: true });
+});
+
+// 4. Random Reward Command (Adds or takes away points)
+app.post('/api/random-reward', (req, res) => {
+    const { amount, username } = req.body;
+    enqueueEvent({ type: 'RANDOM_REWARD', amount, username });
+    res.json({ success: true });
+});
+
+// 5. Automated Stream Events (Subs, Bits, Tangia, Blerp)
+app.post('/api/event', (req, res) => {
+    enqueueEvent(req.body);
+    res.json({ success: true });
+});
+
+// WebSocket Connection handler for the OBS Overlay
+wss.on('connection', (ws) => {
+    let currentLevel = 0;
+    for (const [lvl, data] of Object.entries(LEVEL_DATA)) {
+        if (squishState.totalPoints >= data.points) currentLevel = parseInt(lvl);
+    }
+    const nextLvl = Math.min(currentLevel + 1, 21);
+
+    ws.send(JSON.stringify({
+        type: 'SQUISH_UPDATE',
+        totalPoints: squishState.totalPoints,
+        currentLevel: currentLevel,
+        nextLevelTarget: LEVEL_DATA[nextLvl].points,
+        rewardName: LEVEL_DATA[nextLvl].reward,
+        multiplier: squishState.multiplier
+    }));
+});
+
+// =============================================================================
+// --- SERVER INITIALIZATION ---
+// =============================================================================
+server.listen(PORT, () => {
+    console.log(`Unified SquishPass bot & web server running on port ${PORT}`);
 });
