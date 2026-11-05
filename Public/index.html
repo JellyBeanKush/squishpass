@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SquishPass Level Overlay</title>
+    <style>
+        body { background: transparent; margin: 0; padding: 10px; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        .squish-card { background-color: #000000; border: 2px solid #222; width: 380px; padding: 12px 15px; box-sizing: border-box; color: #ffffff; }
+        .header-text { font-size: 1.15rem; font-weight: 900; text-transform: uppercase; margin-bottom: 8px; display: flex; justify-content: space-between; }
+        .mult-tag { color: #ff7675; }
+        .progress-container { width: 100%; height: 28px; background-color: #6c5ce7; position: relative; overflow: hidden; }
+        .progress-fill { height: 100%; background-color: #00b894; width: 0%; transition: width 0.5s ease-in-out; position: absolute; top: 0; left: 0; }
+        .progress-text { position: absolute; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1rem; font-weight: 800; color: #ffffff; text-shadow: 1px 1px 2px rgba(0,0,0,0.9); z-index: 2; }
+    </style>
+</head>
+<body>
+    <div class="squish-card">
+        <div class="header-text">
+            <span id="level-title">LVL 1: Loading...</span>
+            <span id="mult-indicator" class="mult-tag"></span>
+        </div>
+        <div class="progress-container">
+            <div id="bar-fill" class="progress-fill"></div>
+            <div id="bar-text" class="progress-text">0 / 0</div>
+        </div>
+    </div>
+    <script>
+        const ws = new WebSocket((window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host);
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.type === 'SQUISH_UPDATE') {
+                document.getElementById('level-title').innerText = `LVL ${data.currentLevel}: ${data.rewardName}`;
+                document.getElementById('mult-indicator').innerText = data.multiplier > 1 ? `${data.multiplier}X ACTIVE` : '';
+                let percentage = Math.min(100, Math.max(0, (data.totalPoints / data.nextLevelTarget) * 100));
+                document.getElementById('bar-fill').style.width = `${percentage}%`;
+                document.getElementById('bar-text').innerText = `${data.totalPoints.toFixed(2)} / ${data.nextLevelTarget}`;
+            }
+        };
+    </script>
+</body>
+</html>
