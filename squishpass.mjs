@@ -382,8 +382,19 @@ wss.on('connection', (ws) => {
 });
 
 // =============================================================================
-// --- SERVER INITIALIZATION ---
+// --- SERVER INITIALIZATION & CI HANDLING ---
 // =============================================================================
-server.listen(PORT, () => {
-    console.log(`Unified SquishPass bot & web server running on port ${PORT}`);
-});
+if (process.env.CI) {
+    console.log("Running in GitHub Actions CI environment. Executing sync and exiting...");
+    updateAndSyncDiscord().then(() => {
+        console.log("CI sync completed successfully.");
+        process.exit(0);
+    }).catch(err => {
+        console.error("CI sync failed:", err);
+        process.exit(1);
+    });
+} else {
+    server.listen(PORT, () => {
+        console.log(`Unified SquishPass bot & web server running on port ${PORT}`);
+    });
+}
