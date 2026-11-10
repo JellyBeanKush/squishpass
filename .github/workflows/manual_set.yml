@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       new_total:
-        description: 'Set total points to (e.g. 120.4)'
+        description: 'Set total points (e.g. 120.4)'
         required: true
 
 jobs:
