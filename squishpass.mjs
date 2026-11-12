@@ -183,7 +183,20 @@ async function generatorBoardImageInternal(currentLevel) {
 // --- ENVIRONMENT EXECUTION BRANCH ---
 // =============================================================================
 if (process.env.CI) {
-    console.log("Running in GitHub Actions CI environment. Executing sync and exiting...");
+    console.log("Running in GitHub Actions CI environment. Executing sync...");
+
+    // Parse incoming incremental point payload from GitHub Actions
+    const incomingIncrement = parseFloat(process.env.POINTS);
+    
+    if (!isNaN(incomingIncrement)) {
+        // Apply active multiplier and add cumulatively to existing points
+        const finalAddedPoints = incomingIncrement * squishState.multiplier;
+        squishState.totalPoints = parseFloat(Math.max(0, squishState.totalPoints + finalAddedPoints).toFixed(2));
+        console.log(`Added incremental points from CI: ${finalAddedPoints} (Raw: ${incomingIncrement}, Multiplier: ${squishState.multiplier}x). New Total: ${squishState.totalPoints}`);
+    } else {
+        console.warn("No valid POINTS environment variable provided, using existing disk state.");
+    }
+
     updateAndSyncDiscord().then(() => {
         console.log("CI sync completed successfully.");
         setTimeout(() => process.exit(0), 500);
